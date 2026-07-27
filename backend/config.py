@@ -54,6 +54,15 @@ ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "")
 # 付费需要: jsCqWAovK2LkecY7zXl4 (日文原生女声)
 VOICE_ID = "EXAVITQu4vr4xnSDxMaL"
 
+# Edge TTS（微软 Edge 浏览器同款语音，完全免费·无额度上限·跨平台）
+# 可用日语声音:
+#   ja-JP-NanamiNeural (七海 - 女声, 自然温柔)  ← 推荐
+#   ja-JP-KeitaNeural  (圭太 - 男声)
+EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "ja-JP-NanamiNeural")
+
+# 语速调节：负数变慢方便初学者听清，例如 "-10%" / "-20%" / "+0%"
+EDGE_TTS_RATE = os.getenv("EDGE_TTS_RATE", "-10%")
+
 # 服务器配置
 HOST = "0.0.0.0"
 PORT = int(os.getenv("PORT", "8765"))  # Render 自动注入 PORT 环境变量
