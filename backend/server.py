@@ -8,12 +8,12 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from ai import chat_with_sakura
+from ai import chat_with_sakura, reset_history
 from tts import text_to_speech
-from config import HOST, PORT
+from config import HOST, PORT, MAX_INPUT_LENGTH
 import uvicorn
 
-app = FastAPI(title="日本語チャット", version="1.0")
+app = FastAPI(title="日本語チャット", version="1.1")
 
 
 class ChatRequest(BaseModel):
@@ -28,16 +28,31 @@ class ChatResponse(BaseModel):
 @app.post("/api/chat")
 def chat(req: ChatRequest) -> ChatResponse:
     """对话接口：接收用户日语文字，返回 AI 回复 + 语音"""
-    if not req.text.strip():
+    text = req.text.strip()
+
+    if not text:
         raise HTTPException(status_code=400, detail="空メッセージ")
 
+    if len(text) > MAX_INPUT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"メッセージが長すぎます（{MAX_INPUT_LENGTH}文字以内）",
+        )
+
     # 1. AI 对话
-    reply_text = chat_with_sakura(req.text.strip())
+    reply_text = chat_with_sakura(text)
 
     # 2. 生成语音
     audio_b64 = text_to_speech(reply_text)
 
     return ChatResponse(reply=reply_text, audio_b64=audio_b64)
+
+
+@app.post("/api/reset")
+def reset():
+    """清空对话记忆，重新开始聊天"""
+    reset_history()
+    return {"status": "ok"}
 
 
 @app.get("/api/health")

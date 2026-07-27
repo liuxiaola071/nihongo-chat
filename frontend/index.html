@@ -238,19 +238,35 @@ function now() {
   return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
 }
 
+// 把文字里的 < > & " 转义掉，防止别人塞 HTML/脚本进来
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ==================== 消息渲染 ====================
-function addMsg(role, text, withAudio = false) {
+// 缓存每条 AI 回复的语音，重听时直接播，不再花钱重新生成
+const audioCache = new Map();
+let audioSeq = 0;
+
+function addMsg(role, text, withAudio = false, audioB64 = null) {
   const div = document.createElement('div');
   div.className = `msg ${role}`;
 
-  let html = text.replace(/\n/g, '<br>');
+  let html = escapeHtml(text).replace(/\n/g, '<br>');
 
-  if (role === 'ai' && withAudio) {
-    html += `<br><span class="play-btn" data-text="${encodeURIComponent(text)}">🔊 もう一度聞く</span>`;
+  if (role === 'ai' && withAudio && audioB64) {
+    const id = `audio-${audioSeq++}`;
+    audioCache.set(id, audioB64);
+    html += `<br><span class="play-btn" data-audio-id="${id}">🔊 もう一度聞く</span>`;
   }
 
   const label = role === 'me' ? now() : 'さくら';
-  html += `<div class="time">${label}</div>`;
+  html += `<div class="time">${escapeHtml(label)}</div>`;
   div.innerHTML = html;
 
   chatEl.appendChild(div);
@@ -283,6 +299,9 @@ function playAudio(base64) {
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // iPhone 上切后台再回来 audioCtx 会被挂起，需要唤醒
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
     audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
@@ -294,12 +313,16 @@ function playAudio(base64) {
   }
 }
 
-// 点击"再听一次"
+// 点击"再听一次" — 直接播缓存的语音，不重新调 AI
 chatEl.addEventListener('click', (e) => {
   if (e.target.classList.contains('play-btn')) {
-    const text = decodeURIComponent(e.target.dataset.text);
-    showNotice('もう一度生成中…');
-    sendToAI(text, true); // replay mode — don't show duplicate msg
+    const id = e.target.dataset.audioId;
+    const cached = audioCache.get(id);
+    if (cached) {
+      playAudio(cached);
+    } else {
+      showNotice('音声が見つかりません');
+    }
   }
 });
 
@@ -378,11 +401,15 @@ micBtn.addEventListener('click', () => {
 });
 
 // ==================== 发送消息 ====================
-async function sendToAI(text, replayOnly = false) {
+let isSending = false;   // 防止连点发送两次
+
+async function sendToAI(text) {
+  if (isSending) return;
+  isSending = true;
+  sendBtn.disabled = true;
+
   statusEl.textContent = 'さくらが考え中…';
-  if (!replayOnly) {
-    addMsg('me', text);
-  }
+  addMsg('me', text);
   showTyping();
 
   try {
@@ -392,14 +419,20 @@ async function sendToAI(text, replayOnly = false) {
       body: JSON.stringify({ text }),
     });
 
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) {
+      // 后端返回的错误原因（比如字数超限）读出来给用户看
+      let msg = `HTTP ${resp.status}`;
+      try {
+        const errData = await resp.json();
+        if (errData.detail) msg = errData.detail;
+      } catch (_) {}
+      throw new Error(msg);
+    }
 
     const data = await resp.json();
     hideTyping();
 
-    if (!replayOnly) {
-      const aiDiv = addMsg('ai', data.reply, true);
-    }
+    addMsg('ai', data.reply, true, data.audio_b64);
 
     // 自动播放语音
     if (data.audio_b64) {
@@ -410,14 +443,21 @@ async function sendToAI(text, replayOnly = false) {
   } catch (err) {
     hideTyping();
     statusEl.textContent = '';
-    showNotice('エラー: ' + err.message);
+    showNotice('エラー: ' + err.message, 3000);
     console.error(err);
+  } finally {
+    isSending = false;
+    sendBtn.disabled = false;
   }
 }
 
 async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text) return;
+  if (isSending) {
+    showNotice('ちょっと待ってね…');
+    return;
+  }
 
   inputEl.value = '';
   inputEl.style.height = 'auto';
