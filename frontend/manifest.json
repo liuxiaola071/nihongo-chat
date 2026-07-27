@@ -1,0 +1,11 @@
+{
+  "name": "日本語チャット",
+  "short_name": "日本語",
+  "description": "AI日本語会話パートナー — さくらと話そう",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "orientation": "portrait",
+  "icons": []
+}
