@@ -184,6 +184,41 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
   pointer-events: none;
 }
 #notice.show{opacity: 1}
+
+/* auth overlay */
+#auth-overlay{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  z-index:200;
+}
+#auth-overlay.hidden{display:none}
+.auth-box{
+  text-align:center;
+  background:var(--surface);
+  padding:36px 32px;
+  border-radius:24px;
+  border:1px solid #333;
+  width:min(320px, 85vw);
+}
+#auth-input{
+  width:100%;
+  background:#2a2a2a;
+  border:1px solid #444;
+  border-radius:14px;
+  padding:10px 16px;
+  color:var(--text);
+  font-size:16px;
+  outline:none;
+  text-align:center;
+}
+#auth-input:focus{border-color:var(--accent)}
+#auth-error{
+  color:#ff6b7a;
+  font-size:12px;
+  margin-top:10px;
+  min-height:18px;
+}
 </style>
 </head>
 <body>
@@ -210,9 +245,61 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
 
 <div id="notice"></div>
 
+<!-- 访问口令输入界面（配置了 ACCESS_CODE 时才会显示） -->
+<div id="auth-overlay">
+  <div class="auth-box">
+    <div style="font-size:44px;margin-bottom:12px">🔒</div>
+    <p style="margin-bottom:16px;color:var(--text-dim);font-size:14px">パスワードを入力してください</p>
+    <input type="password" id="auth-input" placeholder="パスワード" autocomplete="off">
+    <button id="auth-btn" class="btn" style="width:auto;border-radius:18px;padding:0 28px;height:40px;font-size:15px;margin-top:12px;background:var(--accent);color:#fff">OK</button>
+    <div id="auth-error"></div>
+  </div>
+</div>
+
 <script>
 // ==================== 配置 ====================
 const API = '/api/chat';
+
+// ==================== 访问认证 ====================
+async function checkAuth() {
+  try {
+    const r = await fetch('/api/auth-check');
+    if (r.ok) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      return;
+    }
+  } catch (e) { /* 网络错误也显示锁屏 */ }
+  document.getElementById('auth-overlay').classList.remove('hidden');
+}
+
+async function tryUnlock() {
+  const input = document.getElementById('auth-input');
+  const errEl = document.getElementById('auth-error');
+  const code = input.value.trim();
+  if (!code) return;
+  errEl.textContent = '';
+  try {
+    const r = await fetch('/api/unlock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (r.ok) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+    } else {
+      errEl.textContent = 'パスワードが違います';
+      input.value = '';
+      input.focus();
+    }
+  } catch (e) {
+    errEl.textContent = '通信エラー';
+  }
+}
+
+document.getElementById('auth-btn').addEventListener('click', tryUnlock);
+document.getElementById('auth-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') tryUnlock();
+});
 
 // ==================== DOM ====================
 const chatEl = document.getElementById('chat');
@@ -328,14 +415,15 @@ function speakByBrowser(text) {
   }
   const voices = window.speechSynthesis.getVoices();
   const ja = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
-  if (!ja && voices.length > 0) {
+  if (!ja) {
+    // voices 为空（还没加载好）或确实没有日语音色
     showNotice('日本語の音声がこの端末にありません');
     return false;
   }
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'ja-JP';
   u.rate = 0.9;
-  if (ja) u.voice = ja;
+  u.voice = ja;
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
   return true;
@@ -520,6 +608,7 @@ inputEl.addEventListener('input', () => {
 });
 
 // ==================== 初始化 ====================
+checkAuth();
 initSpeech();
 scrollBottom();
 

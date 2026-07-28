@@ -63,6 +63,11 @@ EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "ja-JP-NanamiNeural")
 # 语速调节：负数变慢方便初学者听清，例如 "-10%" / "-20%" / "+0%"
 EDGE_TTS_RATE = os.getenv("EDGE_TTS_RATE", "-10%")
 
+# 访问口令（部署到公网后防止陌生人烧 API 额度）
+# 留空 = 不设保护（本地开发时无需口令）
+# ⚠️ 部署时通过环境变量注入，不要写在代码里
+ACCESS_CODE = os.getenv("ACCESS_CODE", "")
+
 # 服务器配置
 HOST = "0.0.0.0"
 PORT = int(os.getenv("PORT", "8765"))  # Render 自动注入 PORT 环境变量

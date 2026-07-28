@@ -32,10 +32,20 @@ def text_to_speech_edge(text: str) -> str | None:
         return bytes(chunks)
 
     try:
-        audio = asyncio.run(_synthesize())
+        # 用独立事件循环，避免并发请求时 "loop already running" 崩溃
+        loop = asyncio.new_event_loop()
+        try:
+            audio = loop.run_until_complete(
+                asyncio.wait_for(_synthesize(), timeout=15)
+            )
+        finally:
+            loop.close()
         if len(audio) > 100:
             return base64.b64encode(audio).decode("utf-8")
         print("[TTS-Edge] 返回的音频太小，可能合成失败")
+        return None
+    except asyncio.TimeoutError:
+        print("[TTS-Edge] 合成超时（15秒），跳过")
         return None
     except Exception as e:
         print(f"[TTS-Edge] 异常: {e}")
