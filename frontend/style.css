@@ -30,13 +30,31 @@ body{
 /* header */
 header{
   background: var(--surface);
-  padding: 14px 16px;
-  text-align: center;
+  padding: 10px 12px;
   border-bottom: 1px solid #333;
   flex-shrink: 0;
+  /* 用 flex 布局让按钮自动换行，避免窄屏(iPhone)上重叠 */
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
-header h1{font-size: 18px;font-weight: 600}
-header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
+header h1{
+  flex: 1 0 100%;   /* 标题独占一行 */
+  order: -2;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+}
+header .sub{
+  flex: 1 0 100%;   /* 副标题独占一行 */
+  order: -1;
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: -2px;
+}
 
 /* chat area */
 #chat{
@@ -106,6 +124,21 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
   border-color: var(--accent);
   background: var(--accent);
 }
+/* 跟读发音打分按钮 */
+.msg .shadow-btn{
+  display: inline-block;
+  margin-top: 6px;
+  margin-left: 6px;
+  font-size: 13px;
+  color: #44dd88;
+  cursor: pointer;
+  padding: 4px 10px;
+  border: 1px solid #44dd88;
+  border-radius: 14px;
+  background: transparent;
+  user-select: none;
+}
+.msg .shadow-btn:active{opacity:.7}
 /* ruby 标签：让读音小一点、别把行距撑太开 */
 .msg-body ruby{ ruby-position: over; }
 .msg-body rt{
@@ -242,26 +275,19 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
 }
 
 /* ===== 顶部工具按钮 ===== */
-header{position:relative}
+/* 改用 flex 流式布局（见上方 header），不再用 absolute 固定偏移，窄屏自动换行不重叠 */
 .hdr-btn{
-  position:absolute;
-  top:12px;
   background:#2f2f2f;
   border:1px solid #444;
   color:var(--text);
   border-radius:16px;
   font-size:12px;
-  padding:6px 12px;
+  padding:6px 10px;
   cursor:pointer;
   font-family:inherit;
+  white-space:nowrap;
 }
 .hdr-btn:active{transform:scale(.94)}
-#scene-btn{left:12px}
-/* 右侧两个按钮：横向排开，互不遮挡 */
-#vocab-btn{right:12px}
-#rescue-btn{right:88px}
-#review-btn{right:164px}
-#quiz-btn{right:240px}
 #vocab-btn .badge{
   display:none;
   background:var(--accent);
@@ -901,5 +927,128 @@ header{position:relative}
   font-size:16px;
   cursor:pointer;
 }
+
+/* ===== 跟读发音打分 ===== */
+/* 中间状态提示浮层（倒计时/录音中） */
+#shadow-status{
+  position:fixed;
+  top:50%;left:50%;
+  transform:translate(-50%,-50%) scale(.9);
+  background:rgba(20,20,20,.96);
+  border:1px solid #44dd88;
+  color:#fff;
+  padding:18px 26px;
+  border-radius:18px;
+  font-size:15px;
+  text-align:center;
+  z-index:300;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s, transform .2s;
+  max-width:80vw;
+}
+#shadow-status.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+/* 评分结果卡片 */
+.shadow-card{
+  position:fixed;inset:0;
+  background:rgba(0,0,0,.6);
+  z-index:300;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  animation:fadeIn .2s ease-out;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.shadow-card > div{max-width:420px}
+.shadow-card{
+  flex-direction:column;
+}
+.shadow-card .shadow-head,
+.shadow-card .shadow-score,
+.shadow-card .shadow-comment,
+.shadow-card .shadow-target,
+.shadow-card .shadow-spoken,
+.shadow-card .shadow-alts,
+.shadow-card .shadow-retry{
+  background:var(--surface);
+  width:min(420px,100%);
+  margin-left:auto;
+  margin-right:auto;
+}
+.shadow-head{
+  background:var(--surface)!important;
+  border:1px solid #333;
+  border-radius:18px 18px 0 0;
+  padding:14px 18px;
+  font-size:16px;
+  font-weight:600;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.shadow-close{
+  background:none;border:none;
+  color:var(--text-dim);
+  font-size:22px;cursor:pointer;line-height:1;
+}
+.shadow-score{
+  background:#2a2a2a;
+  border-left:1px solid #333;
+  border-right:1px solid #333;
+  padding:24px 18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+}
+.shadow-score.good{background:#1a2e1a}
+.shadow-score.mid{background:#2e2a1a}
+.shadow-score.low{background:#2e1a1a}
+.shadow-emoji{font-size:48px}
+.shadow-num{font-size:44px;font-weight:700;color:var(--accent)}
+.shadow-num small{font-size:16px;color:var(--text-dim);font-weight:400}
+.shadow-comment{
+  background:#2a2a2a;
+  border-left:1px solid #333;
+  border-right:1px solid #333;
+  padding:0 18px 16px;
+  text-align:center;
+  font-size:15px;
+  color:#ddd;
+}
+.shadow-target,.shadow-spoken{
+  background:#1f1f1f;
+  border-left:1px solid #333;
+  border-right:1px solid #333;
+  padding:10px 18px;
+  font-size:14px;
+  line-height:1.6;
+}
+.shadow-target b,.shadow-spoken b{color:var(--text-dim);font-weight:600}
+.shadow-alts{
+  background:#1f1f1f;
+  border-left:1px solid #333;
+  border-right:1px solid #333;
+  padding:8px 18px 12px;
+  font-size:12px;
+  color:var(--text-dim);
+  line-height:1.7;
+}
+.shadow-alts small{color:#666;margin-left:2px}
+.shadow-retry{
+  background:var(--accent)!important;
+  border:1px solid var(--accent);
+  border-radius:0 0 18px 18px;
+  color:#fff;
+  padding:14px;
+  font-size:15px;
+  cursor:pointer;
+  font-family:inherit;
+}
+.shadow-retry:active{opacity:.85}
 
 

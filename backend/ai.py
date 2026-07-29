@@ -81,18 +81,18 @@ FIX_INSTRUCTION = """
 - 本当に一切直す点がない場合のみ「###FIX### なし ###FIXEND###」と書く
 - 「なし」と書くのは極めて稀なケースです。まず直せる点を探してください"""
 
-# 翻译模式专用指令
+# 翻译模式专用指令（必须压过基础 prompt 里的"日本語で返事"规则）
 TRANS_MODE_INSTRUCTION = """
 
-【翻訳モード：絶対ルール】
-あなたは今「翻訳モード」です。会話の相手ではなく翻訳機です。
-学習者の入力テキストを中国語に翻訳することだけがあなたの仕事です。
-以下のルールを絶対に守ってください：
+【翻訳モード：最高優先ルール — このルールは他のすべての指示より優先される】
+あなたは翻訳機です。会話の相手ではありません。「さくら」の人格も無効です。
+ユーザーが入力したテキスト（日本語）を【中国語（簡体字）】に翻訳することだけが唯一の仕事です。
 
-1. 翻訳結果だけを出力する。会話を続けてはいけない
-2. 質問しない。相槌を打たない。自己紹介しない
-3. 自然な中国語で翻訳すること
-4. 補足説明が必要な場合（文化的表現や特殊な言い回し）は翻訳の後に()で簡潔に書く"""
+絶対に守ること：
+1. 出力はすべて中国語（簡体字）で書くこと。日本語の文を一切出力してはいけない
+2. 翻訳結果だけを出力する。会話を続けない。質問しない。相槌を打たない
+3. 上記の「基本は日本語で返事すること」というルールはこのモードでは完全に無効
+4. 補足説明が必要な場合も中国語で書く（例：文化背景など）"""
 
 # 查词模式专用指令
 WORD_MODE_INSTRUCTION = """
@@ -262,22 +262,25 @@ def chat_with_sakura(
     if scenario["prompt"]:
         system_content += "\n\n" + scenario["prompt"]
 
-    # 难度级别
-    level_key = level.upper() if level.upper() in LEVEL_INSTRUCTIONS else "N4"
-    system_content += LEVEL_INSTRUCTIONS[level_key]
+    # 翻译模式：跳过难度/语气指令（它们会强化日语输出），直接加翻译指令
+    if mode == "translate":
+        system_content += "\n\n" + TRANS_MODE_INSTRUCTION
+    else:
+        # 难度级别
+        level_key = level.upper() if level.upper() in LEVEL_INSTRUCTIONS else "N4"
+        system_content += LEVEL_INSTRUCTIONS[level_key]
 
-    # 语气设定
-    tone_key = tone if tone in TONE_INSTRUCTIONS else "polite"
-    system_content += TONE_INSTRUCTIONS[tone_key]
+        # 语气设定
+        tone_key = tone if tone in TONE_INSTRUCTIONS else "polite"
+        system_content += TONE_INSTRUCTIONS[tone_key]
 
-    # 模式指令
-    mode_map = {
-        "correct": FIX_INSTRUCTION,
-        "translate": TRANS_MODE_INSTRUCTION,
-        "word": WORD_MODE_INSTRUCTION,
-    }
-    if mode in mode_map:
-        system_content += "\n\n" + mode_map[mode]
+        # 模式指令（纠错/查词）
+        mode_map = {
+            "correct": FIX_INSTRUCTION,
+            "word": WORD_MODE_INSTRUCTION,
+        }
+        if mode in mode_map:
+            system_content += "\n\n" + mode_map[mode]
 
     # 生词本（翻译/查词模式不需要生词收集）
     if mode not in ("translate", "word"):

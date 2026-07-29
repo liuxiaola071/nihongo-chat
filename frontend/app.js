@@ -245,6 +245,7 @@ function addMsg(role, text, opts = {}) {
     }
     html += `<br><span class="play-btn" data-audio-id="${id}">🔊 もう一度聞く</span>`;
     html += `<span class="furi-btn" data-furi-text="${escapeHtml(text)}">あ ふりがな</span>`;
+    html += `<span class="shadow-btn" data-shadow-text="${escapeHtml(text)}">🗣️ 跟读</span>`;
   }
 
   // 译文折叠按钮（AI 消息都有）
@@ -377,6 +378,12 @@ chatEl.addEventListener('click', (e) => {
   if (e.target.classList.contains('trans-btn')) {
     toggleTranslation(e.target);
   }
+
+  // 跟读发音打分
+  if (e.target.classList.contains('shadow-btn')) {
+    const s = e.target.dataset.shadowText;
+    if (s) startShadowing(s);
+  }
 });
 
 // ==================== 振假名（ふりがな）====================
@@ -434,7 +441,7 @@ const MAX_SENTENCE_AUDIO_CACHE = 30;  // 音频数据更大，限制更严格
 async function speakSentence(text) {
   // 先用缓存
   if (sentenceAudioCache.has(text)) {
-    playAudio(sentenceAudioCache.get(text));
+    await playAudio(sentenceAudioCache.get(text));
     return;
   }
   statusEl.textContent = '🔊 読み上げ中…';
@@ -448,13 +455,13 @@ async function speakSentence(text) {
     const data = await resp.json();
     if (data.audio_b64) {
       _cacheSet(sentenceAudioCache, text, data.audio_b64, MAX_SENTENCE_AUDIO_CACHE);
-      playAudio(data.audio_b64);
+      await playAudio(data.audio_b64);
     } else {
-      speakByBrowser(text);
+      await speakByBrowser(text);
     }
   } catch (err) {
     console.error('Sentence TTS error:', err);
-    speakByBrowser(text);
+    await speakByBrowser(text);
   }
   statusEl.textContent = '';
 }
@@ -1663,53 +1670,77 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// ==================== 跟读发音打分 ====================
+// ==================== 跟读发音打分（免费版）====================
+// 原理：浏览器 Web Speech API 只把语音转成文字，本身不会逐音打分。
+// 这里用「识别结果 vs 目标句」的文字相似度（编辑距离）+ 识别置信度 + 候选词，
+// 粗略判断说得清不清楚。无法精确到单个假名（那需要付费 API）。
 let scoreRecognition = null;
+let scoreSupported = false;
 
 function initScoreSpeech() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  scoreSupported = true;
   scoreRecognition = new SR();
   scoreRecognition.lang = 'ja-JP';
   scoreRecognition.continuous = false;
   scoreRecognition.interimResults = false;
-  scoreRecognition.maxAlternatives = 3;
+  scoreRecognition.maxAlternatives = 3;   // 多拿几个候选词用于反馈
 }
 
-// 跟读发音打分（独立功能，不覆盖 speakSentence）
-async function startPronunciationPractice(sentence) {
-  speakByBrowser(sentence);
-  // 弹出一个评分提示
-  showNotice('🗣️ 真似して読んでみて！（3秒後録音開始…）', 3000);
-  
-  setTimeout(() => {
-    if (!scoreRecognition) {
-      showNotice('この端末は発音チェック非対応です', 2000);
-      return;
+/** 跟读一条句子：示范朗读 → 倒计时 → 录音 → 评分卡片 */
+async function startShadowing(sentence) {
+  if (!scoreSupported || !scoreRecognition) {
+    showNotice('この端末は発音チェック非対応です（Chrome/Safari推奨）', 2500);
+    return;
+  }
+  // 1) さくら先示范朗读
+  await speakSentence(sentence);
+
+  // 2) 倒计时提示
+  showShadowStatus('🎧 よく聞いて…もう一回読むよ');
+  await speakSentence(sentence);
+
+  showShadowStatus('🗣️ 3秒後に録音開始…真似して読んでね！');
+  await sleep(3000);
+
+  // 3) 开始录音识别
+  showShadowStatus('🎤 録音中…話して！');
+  scoreRecognition.onresult = (event) => {
+    const res = event.results[0];
+    const best = res[0];
+    const transcript = best.transcript;
+    const confidence = best.confidence || 0;
+    const alts = [];
+    for (let i = 0; i < res.length; i++) {
+      alts.push({ text: res[i].transcript, conf: res[i].confidence || 0 });
     }
-    
-    scoreRecognition.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      const result = comparePronunciation(sentence, transcript);
-      showNotice(`🎤 ${result.emoji} 一致度: ${result.score}%「${transcript}」`, 4000);
-    };
-    
-    scoreRecognition.onerror = () => showNotice('🎤 聞き取れませんでした', 2000);
-    scoreRecognition.onend = () => {};
-    
-    try {
-      scoreRecognition.start();
-    } catch (_) {}
-  }, 3000);
+    const verdict = comparePronunciation(sentence, transcript, confidence);
+    showShadowResult(sentence, transcript, verdict, alts);
+  };
+  scoreRecognition.onerror = (e) => {
+    if (e.error === 'no-speech') {
+      showShadowStatus('😶 音声が検出されませんでした。もう一回やってみよう');
+    } else if (e.error === 'not-allowed') {
+      showShadowStatus('🎤 マイクの許可が必要です');
+    } else {
+      showShadowStatus('🎤 聞き取れませんでした（' + e.error + '）');
+    }
+    setTimeout(hideShadowStatus, 2500);
+  };
+  try {
+    scoreRecognition.start();
+  } catch (_) {}
 }
 
-function comparePronunciation(original, spoken) {
-  // 简单相似度：编辑距离
-  const o = original.replace(/[\s\u3000。、！？!?,，.\-…]+/g, '');
-  const s = spoken.replace(/[\s\u3000。、！？!?,，.\-…]+/g, '');
-  
-  const m = o.length;
-  const n = s.length;
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/** 编辑距离相似度 + 置信度 → 综合一致度 */
+function comparePronunciation(original, spoken, confidence) {
+  const o = original.replace(/[\s\u3000。、！？!?,，.\-…〜~]+/g, '');
+  const s = spoken.replace(/[\s\u3000。、！？!?,，.\-…〜~]+/g, '');
+
+  const m = o.length, n = s.length;
   const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = 0; i <= m; i++) dp[i][0] = i;
   for (let j = 0; j <= n; j++) dp[0][j] = j;
@@ -1722,10 +1753,62 @@ function comparePronunciation(original, spoken) {
       );
     }
   }
-  
-  const similarity = Math.max(0, Math.round((1 - dp[m][n] / Math.max(m, 1)) * 100));
-  const emoji = similarity >= 90 ? '😎' : similarity >= 70 ? '😊' : similarity >= 50 ? '🤔' : '😅';
-  return { score: similarity, emoji };
+  const textSim = Math.max(0, 1 - dp[m][n] / Math.max(m, 1));   // 0~1 文字相似度
+  // 综合分 = 文字相似度 70% + 识别置信度 30%
+  const score = Math.round((textSim * 0.7 + confidence * 0.3) * 100);
+
+  let emoji, comment;
+  if (score >= 90)      { emoji = '😎'; comment = '完璧！ネイティブみたい！'; }
+  else if (score >= 75) { emoji = '😊'; comment = 'すごくいい！この調子！'; }
+  else if (score >= 55) { emoji = '🤔'; comment = 'まあまあ。もう一回ゆっくり読んでみよう'; }
+  else                  { emoji = '😅'; comment = '聞き取りにくかったかも。お手本をよく聞いて真似してね'; }
+  return { score, emoji, comment };
+}
+
+// ----- 跟读用的临时浮层（状态提示 + 结果卡片）-----
+let _shadowStatusEl = null;
+function _ensureShadowStatus() {
+  if (_shadowStatusEl) return _shadowStatusEl;
+  const el = document.createElement('div');
+  el.id = 'shadow-status';
+  document.body.appendChild(el);
+  _shadowStatusEl = el;
+  return el;
+}
+function showShadowStatus(text) {
+  const el = _ensureShadowStatus();
+  el.textContent = text;
+  el.classList.add('show');
+}
+function hideShadowStatus() {
+  if (_shadowStatusEl) _shadowStatusEl.classList.remove('show');
+}
+
+function showShadowResult(target, spoken, verdict, alts) {
+  hideShadowStatus();
+  const altHtml = alts.length
+    ? `<div class="shadow-alts">認識候補：${alts.map(a =>
+        `「${escapeHtml(a.text)}」<small>${Math.round(a.conf*100)}%</small>`).join(' / ')}</div>`
+    : '';
+  const card = document.createElement('div');
+  card.className = 'shadow-card';
+  card.innerHTML = `
+    <div class="shadow-head">🗣️ 発音チェック <button class="shadow-close">×</button></div>
+    <div class="shadow-score ${verdict.score>=75?'good':verdict.score>=55?'mid':'low'}">
+      <span class="shadow-emoji">${verdict.emoji}</span>
+      <span class="shadow-num">${verdict.score}<small>点</small></span>
+    </div>
+    <div class="shadow-comment">${escapeHtml(verdict.comment)}</div>
+    <div class="shadow-target"><b>お手本：</b>${escapeHtml(target)}</div>
+    <div class="shadow-spoken"><b>あなたの発音：</b>${escapeHtml(spoken)}</div>
+    ${altHtml}
+    <button class="shadow-retry">🔄 もう一回</button>
+  `;
+  document.body.appendChild(card);
+  card.querySelector('.shadow-close').onclick = () => card.remove();
+  card.querySelector('.shadow-retry').onclick = () => { card.remove(); startShadowing(target); };
+  // 点空白关闭
+  card.addEventListener('click', (e) => { if (e.target === card) card.remove(); });
 }
 
 // ==================== 初始化 ====================
