@@ -8,3 +8,10 @@ __pycache__/
 # 临时诊断输出
 _push_out*.txt
 _tmp*.txt
+
+# 生词本本地数据（每个人的学习记录，不入库）
+backend/data/
+
+# Node / Capacitor 构建产物
+node_modules/
+android/

@@ -1,0 +1,12 @@
+{
+  "appId": "com.sakura.nihongo",
+  "appName": "日本語チャット",
+  "webDir": "frontend",
+  "server": {
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true
+  }
+}

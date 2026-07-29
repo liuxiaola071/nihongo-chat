@@ -3,230 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="AI日本語会話パートナー — さくらと話そう。シーン別会話練習・生詞自動収集・音声読み上げ対応。">
+<meta name="theme-color" content="#0f0f0f">
+<!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="日本語">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<!-- Splash Screen (iOS) -->
+<link rel="apple-touch-startup-image" href="apple-touch-icon.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎌</text></svg>">
 <title>日本語チャット</title>
-<style>
-:root{
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --bubble-me: #e8304a;
-  --bubble-ai: #2a2a2a;
-  --text: #eee;
-  --text-dim: #999;
-  --accent: #ff6b7a;
-  --safe-bottom: env(safe-area-inset-bottom, 12px);
-}
-*{margin:0;padding:0;box-sizing:border-box}
-body{
-  font-family: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* header */
-header{
-  background: var(--surface);
-  padding: 14px 16px;
-  text-align: center;
-  border-bottom: 1px solid #333;
-  flex-shrink: 0;
-}
-header h1{font-size: 18px;font-weight: 600}
-header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
-
-/* chat area */
-#chat{
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  -webkit-overflow-scrolling: touch;
-}
-.msg{
-  max-width: 82%;
-  padding: 12px 16px;
-  border-radius: 18px;
-  font-size: 15px;
-  line-height: 1.55;
-  word-break: break-word;
-  animation: fadeUp .3s ease-out;
-}
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.msg.me{
-  align-self: flex-end;
-  background: var(--bubble-me);
-  border-bottom-right-radius: 6px;
-}
-.msg.ai{
-  align-self: flex-start;
-  background: var(--bubble-ai);
-  border-bottom-left-radius: 6px;
-}
-.msg .time{
-  font-size: 10px;
-  color: var(--text-dim);
-  margin-top: 4px;
-  text-align: right;
-}
-.msg.ai .time{text-align:left}
-.msg .play-btn{
-  display: inline-block;
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--accent);
-  cursor: pointer;
-  padding: 4px 10px;
-  border: 1px solid var(--accent);
-  border-radius: 14px;
-  background: transparent;
-}
-
-/* typing indicator */
-.typing{
-  align-self: flex-start;
-  padding: 14px 20px;
-  border-radius: 18px;
-  background: var(--bubble-ai);
-  display: flex;
-  gap: 4px;
-}
-.typing span{
-  width: 7px;height: 7px;
-  border-radius: 50%;
-  background: var(--text-dim);
-  animation: bounce 1.2s infinite;
-}
-.typing span:nth-child(2){animation-delay:.15s}
-.typing span:nth-child(3){animation-delay:.3s}
-@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
-
-/* bottom bar */
-#input-area{
-  flex-shrink: 0;
-  background: var(--surface);
-  padding: 10px 12px calc(10px + var(--safe-bottom));
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  border-top: 1px solid #333;
-}
-#input-box{
-  flex:1;
-  background: #2a2a2a;
-  border: 1px solid #444;
-  border-radius: 22px;
-  padding: 10px 16px;
-  color: var(--text);
-  font-size: 15px;
-  resize: none;
-  outline: none;
-  font-family: inherit;
-  max-height: 100px;
-  line-height: 1.4;
-}
-#input-box::placeholder{color:#666}
-.btn{
-  width: 44px;height: 44px;
-  border-radius: 50%;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform .15s;
-}
-.btn:active{transform:scale(.9)}
-#mic-btn{
-  background: #333;
-  color: var(--text);
-}
-#mic-btn.listening{
-  background: var(--accent);
-  color: #fff;
-  animation: pulse 1s infinite;
-}
-@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,122,.4)}50%{box-shadow:0 0 0 12px rgba(255,107,122,0)}}
-#send-btn{
-  background: var(--accent);
-  color: #fff;
-}
-#status{font-size:11px;color:var(--text-dim);text-align:center;padding:4px 0;min-height:20px}
-
-/* overlay notice */
-#notice{
-  position: fixed;
-  bottom: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #333;
-  color: #fff;
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-size: 13px;
-  z-index: 99;
-  opacity: 0;
-  transition: opacity .25s;
-  pointer-events: none;
-}
-#notice.show{opacity: 1}
-
-/* auth overlay */
-#auth-overlay{
-  position:fixed;inset:0;
-  background:var(--bg);
-  display:flex;align-items:center;justify-content:center;
-  z-index:200;
-}
-#auth-overlay.hidden{display:none}
-.auth-box{
-  text-align:center;
-  background:var(--surface);
-  padding:36px 32px;
-  border-radius:24px;
-  border:1px solid #333;
-  width:min(320px, 85vw);
-}
-#auth-input{
-  width:100%;
-  background:#2a2a2a;
-  border:1px solid #444;
-  border-radius:14px;
-  padding:10px 16px;
-  color:var(--text);
-  font-size:16px;
-  outline:none;
-  text-align:center;
-}
-#auth-input:focus{border-color:var(--accent)}
-#auth-error{
-  color:#ff6b7a;
-  font-size:12px;
-  margin-top:10px;
-  min-height:18px;
-}
-</style>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header>
+  <button class="hdr-btn" id="scene-btn">💬 <span id="scene-label">自由聊天</span></button>
   <h1>🎌 さくらと話そう</h1>
   <div class="sub">AI日本語会話パートナー</div>
+  <button class="hdr-btn" id="vocab-btn">📓 単語<span class="badge" id="vocab-badge">0</span></button>
+  <button class="hdr-btn" id="review-btn">📝 復習<span class="badge" id="review-badge">0</span></button>
+  <button class="hdr-btn" id="rescue-btn">🆘 救急</button>
+  <button class="hdr-btn" id="quiz-btn">📝 練習</button>
 </header>
+
+<!-- 模式切换 + 难度选择 -->
+<div id="mode-bar">
+  <span class="mode-chip active" data-mode="chat">💬 会話</span>
+  <span class="mode-chip" data-mode="correct">📝 添削</span>
+  <span class="mode-chip" data-mode="translate">🔄 翻訳</span>
+  <span class="mode-chip" data-mode="word">📖 辞書</span>
+  <select id="level-select">
+    <option value="N5">N5</option>
+    <option value="N4" selected>N4</option>
+    <option value="N3">N3</option>
+    <option value="N2">N2</option>
+    <option value="N1">N1</option>
+  </select>
+  <select id="speed-select" title="語速">
+    <option value="-50%">🐢 0.5x</option>
+    <option value="-25%">🐇 0.75x</option>
+    <option value="" selected>🚶 1.0x</option>
+    <option value="+25%">🏃 1.25x</option>
+    <option value="+50%">💨 1.5x</option>
+  </select>
+  <select id="tone-select" title="話し方">
+    <option value="polite" selected>😊 敬語</option>
+    <option value="casual">😎 タメ口</option>
+    <option value="kansai">🐙 関西弁</option>
+  </select>
+  <button class="mode-chip" id="listening-toggle" title="听力模式：只听不说">🔇</button>
+  <button class="mode-chip" id="handsfree-btn" title="免提对话：自动 听→说→听 循环">🎧</button>
+  <button class="mode-chip" id="export-btn" title="导出对话">📥</button>
+  <button class="mode-chip" id="stats-btn" title="学习统计">📊</button>
+</div>
 
 <div id="chat">
   <div class="msg ai">
@@ -237,6 +68,12 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
 
 <div id="status"></div>
 
+<!-- 实时修正条 -->
+<div id="correction-bar" class="hidden">
+  <button id="correction-close">×</button>
+  <div id="correction-content"></div>
+</div>
+
 <div id="input-area">
   <button class="btn" id="mic-btn" title="音声入力">🎤</button>
   <textarea id="input-box" rows="1" placeholder="日本語で話しかけてね…"></textarea>
@@ -245,7 +82,173 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
 
 <div id="notice"></div>
 
-<!-- 访问口令输入界面（配置了 ACCESS_CODE 时才会显示） -->
+<!-- 场景选择弹层 -->
+<div class="sheet hidden" id="scene-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>🎭 シーンを選ぶ</span>
+      <button class="sheet-close" data-close="scene-sheet">×</button>
+    </div>
+    <div class="scene-grid" id="scene-grid"></div>
+  </div>
+</div>
+
+<!-- 生词本弹层 -->
+<div class="sheet hidden" id="vocab-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>📓 単語帳</span>
+      <button class="sheet-close" data-close="vocab-sheet">×</button>
+    </div>
+    <div id="vocab-days"></div>
+    <div id="vocab-list"></div>
+    <div class="vocab-actions">
+      <button id="vocab-export" class="primary">⬇ Ankiに書き出す</button>
+      <button id="vocab-clear">🗑 クリア</button>
+    </div>
+  </div>
+</div>
+
+<!-- 救急短语弹层 -->
+<div class="sheet hidden" id="rescue-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>🆘 緊急フレーズ</span>
+      <button class="sheet-close" data-close="rescue-sheet">×</button>
+    </div>
+    <div class="rescue-grid" id="rescue-grid"></div>
+  </div>
+</div>
+
+<!-- SRS 复习弹层 -->
+<div class="sheet hidden" id="review-sheet">
+  <div class="sheet-box review-box">
+    <div class="sheet-title">
+      <span>📝 間隔復習</span>
+      <button class="sheet-close" data-close="review-sheet">×</button>
+    </div>
+    <div class="review-stats" id="review-stats"></div>
+    <div class="review-card" id="review-card">
+      <div class="review-front">
+        <div class="review-word" id="review-word"></div>
+        <div class="review-kana" id="review-kana"></div>
+      </div>
+      <div class="review-back hidden" id="review-back">
+        <div class="review-meaning" id="review-meaning"></div>
+      </div>
+    </div>
+    <div class="review-hint" id="review-hint">👆 タップで答えを見る</div>
+    <div class="review-grades" id="review-grades">
+      <button class="grade-btn" data-q="0">😰 全然<br>ダメ</button>
+      <button class="grade-btn" data-q="1">😣 忘れた</button>
+      <button class="grade-btn" data-q="2">🤔 見覚え<br>ある</button>
+      <button class="grade-btn" data-q="3">😅 難しい<br>けど正解</button>
+      <button class="grade-btn" data-q="4">😊 少し<br>迷った</button>
+      <button class="grade-btn" data-q="5">😎 完璧</button>
+    </div>
+    <div class="review-done hidden" id="review-done">
+      <div style="font-size:48px;margin-bottom:12px">🎉</div>
+      <p>今日の復習は全部終わりました！</p>
+      <p style="color:var(--text-dim);font-size:14px">また明日、さくらが待ってるよ 🌸</p>
+    </div>
+  </div>
+</div>
+
+<!-- 翻译练习弹层 -->
+<div class="sheet hidden" id="quiz-sheet">
+  <div class="sheet-box quiz-box">
+    <div class="sheet-title">
+      <span>📝 翻訳練習</span>
+      <button class="sheet-close" data-close="quiz-sheet">×</button>
+    </div>
+    <!-- 方向 + 难度 -->
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button id="quiz-direction" class="quiz-toggle">🇯🇵 → 🇨🇳</button>
+      <select id="quiz-level" style="background:#2a2a2a;border:1px solid #333;color:var(--text-dim);border-radius:14px;padding:5px 10px;font-size:12px;font-family:inherit">
+        <option value="all">全レベル</option>
+        <option value="1">N5</option>
+        <option value="2" selected>N4</option>
+        <option value="3">N3</option>
+        <option value="4">N2</option>
+        <option value="5">N1</option>
+      </select>
+      <span style="font-size:12px;color:var(--text-dim);margin-left:auto" id="quiz-progress"></span>
+    </div>
+    <!-- 进度条 -->
+    <div class="quiz-bar-track"><div class="quiz-bar-fill" id="quiz-bar-fill"></div></div>
+    <!-- 题目卡片 -->
+    <div class="quiz-card" id="quiz-card">
+      <div class="quiz-question-label">翻訳してください：</div>
+      <div class="quiz-question" id="quiz-question"></div>
+      <input type="text" id="quiz-input" placeholder="答えを入力…" autocomplete="off">
+      <button id="quiz-check" class="quiz-check-btn">✅ 確認</button>
+      <div class="quiz-feedback hidden" id="quiz-feedback"></div>
+    </div>
+    <!-- 结果 -->
+    <div class="quiz-result hidden" id="quiz-result">
+      <div style="font-size:48px;margin-bottom:8px" id="quiz-result-emoji"></div>
+      <div id="quiz-result-text"></div>
+      <button id="quiz-restart" class="quiz-restart-btn">🔄 もう一度</button>
+    </div>
+  </div>
+</div>
+
+<!-- 错误本弹层 -->
+<div class="sheet hidden" id="errors-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>📕 ミス帳</span>
+      <button class="sheet-close" data-close="errors-sheet">×</button>
+    </div>
+    <div id="errors-stats" style="margin-bottom:12px;font-size:13px;color:var(--text-dim)"></div>
+    <div id="errors-list"></div>
+    <div class="vocab-actions" style="margin-top:12px">
+      <button id="errors-clear">🗑 全部クリア</button>
+    </div>
+  </div>
+</div>
+
+<!-- 学习统计弹层 -->
+<div class="sheet hidden" id="stats-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>📊 学習統計</span>
+      <button class="sheet-close" data-close="stats-sheet">×</button>
+    </div>
+    <div id="stats-content"></div>
+  </div>
+</div>
+
+<!-- 量词专项弹层 -->
+<div class="sheet hidden" id="counter-sheet">
+  <div class="sheet-box">
+    <div class="sheet-title">
+      <span>🔢 助数詞ドリル</span>
+      <button class="sheet-close" data-close="counter-sheet">×</button>
+    </div>
+    <div id="counter-progress" style="font-size:13px;color:var(--text-dim);margin-bottom:10px"></div>
+    <div class="counter-card" id="counter-card">
+      <div class="counter-question" id="counter-q"></div>
+      <div class="counter-hint" id="counter-hint"></div>
+      <input type="text" id="counter-input" placeholder="助数詞を入力…" autocomplete="off">
+      <button id="counter-check" class="quiz-check-btn">✅ 確認</button>
+      <div class="quiz-feedback hidden" id="counter-feedback"></div>
+    </div>
+    <div class="quiz-result hidden" id="counter-result">
+      <div style="font-size:48px;margin-bottom:8px" id="counter-result-emoji"></div>
+      <div id="counter-result-text"></div>
+      <button id="counter-restart" class="quiz-restart-btn">🔄 もう一度</button>
+    </div>
+  </div>
+</div>
+
+<!-- 划选查词弹窗 -->
+<div class="word-popup hidden" id="word-popup">
+  <div id="word-popup-content"></div>
+  <button id="word-popup-close" class="sheet-close">×</button>
+</div>
+
+<!-- 访问口令输入界面 -->
 <div id="auth-overlay">
   <div class="auth-box">
     <div style="font-size:44px;margin-bottom:12px">🔒</div>
@@ -253,375 +256,18 @@ header .sub{font-size: 11px;color:var(--text-dim);margin-top:2px}
     <input type="password" id="auth-input" placeholder="パスワード" autocomplete="off">
     <button id="auth-btn" class="btn" style="width:auto;border-radius:18px;padding:0 28px;height:40px;font-size:15px;margin-top:12px;background:var(--accent);color:#fff">OK</button>
     <div id="auth-error"></div>
+    <!-- サーバー設定（⚙ アイコンで開閉） -->
+    <div style="margin-top:16px;border-top:1px solid #333;padding-top:12px">
+      <span id="server-toggle" style="cursor:pointer;color:var(--text-dim);font-size:13px">⚙ サーバー設定</span>
+      <div id="server-config" style="display:none;margin-top:8px">
+        <input type="text" id="server-input" placeholder="http://192.168.x.x:8765" autocomplete="off" style="width:100%;margin-bottom:6px">
+        <button id="server-save" class="btn" style="width:auto;border-radius:14px;padding:0 16px;height:30px;font-size:12px;background:#444;color:#ccc">保存</button>
+        <span id="server-msg" style="font-size:11px;color:#4a4;margin-left:8px"></span>
+      </div>
+    </div>
   </div>
 </div>
 
-<script>
-// ==================== 配置 ====================
-const API = '/api/chat';
-
-// ==================== 访问认证 ====================
-async function checkAuth() {
-  try {
-    const r = await fetch('/api/auth-check');
-    if (r.ok) {
-      document.getElementById('auth-overlay').classList.add('hidden');
-      return;
-    }
-  } catch (e) { /* 网络错误也显示锁屏 */ }
-  document.getElementById('auth-overlay').classList.remove('hidden');
-}
-
-async function tryUnlock() {
-  const input = document.getElementById('auth-input');
-  const errEl = document.getElementById('auth-error');
-  const code = input.value.trim();
-  if (!code) return;
-  errEl.textContent = '';
-  try {
-    const r = await fetch('/api/unlock', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
-    });
-    if (r.ok) {
-      document.getElementById('auth-overlay').classList.add('hidden');
-    } else {
-      errEl.textContent = 'パスワードが違います';
-      input.value = '';
-      input.focus();
-    }
-  } catch (e) {
-    errEl.textContent = '通信エラー';
-  }
-}
-
-document.getElementById('auth-btn').addEventListener('click', tryUnlock);
-document.getElementById('auth-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') tryUnlock();
-});
-
-// ==================== DOM ====================
-const chatEl = document.getElementById('chat');
-const inputEl = document.getElementById('input-box');
-const sendBtn = document.getElementById('send-btn');
-const micBtn = document.getElementById('mic-btn');
-const statusEl = document.getElementById('status');
-const noticeEl = document.getElementById('notice');
-
-// ==================== 工具函数 ====================
-function scrollBottom() {
-  chatEl.scrollTop = chatEl.scrollHeight;
-}
-
-function showNotice(text, duration = 2000) {
-  noticeEl.textContent = text;
-  noticeEl.classList.add('show');
-  setTimeout(() => noticeEl.classList.remove('show'), duration);
-}
-
-function now() {
-  const d = new Date();
-  return `${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
-}
-
-// 把文字里的 < > & " 转义掉，防止别人塞 HTML/脚本进来
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ==================== 消息渲染 ====================
-// 缓存每条 AI 回复的语音，重听时直接播，不再花钱重新生成
-const audioCache = new Map();
-// 服务端没给音频时，把原文存下来，重听时交给浏览器朗读
-const textCache = new Map();
-let audioSeq = 0;
-
-function addMsg(role, text, withAudio = false, audioB64 = null) {
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-
-  let html = escapeHtml(text).replace(/\n/g, '<br>');
-
-  if (role === 'ai' && withAudio) {
-    const id = `audio-${audioSeq++}`;
-    if (audioB64) {
-      audioCache.set(id, audioB64);
-    } else {
-      textCache.set(id, text);
-    }
-    html += `<br><span class="play-btn" data-audio-id="${id}">🔊 もう一度聞く</span>`;
-  }
-
-  const label = role === 'me' ? now() : 'さくら';
-  html += `<div class="time">${escapeHtml(label)}</div>`;
-  div.innerHTML = html;
-
-  chatEl.appendChild(div);
-  scrollBottom();
-  return div;
-}
-
-function showTyping() {
-  const div = document.createElement('div');
-  div.className = 'typing';
-  div.id = 'typing-indicator';
-  div.innerHTML = '<span></span><span></span><span></span>';
-  chatEl.appendChild(div);
-  scrollBottom();
-}
-
-function hideTyping() {
-  const el = document.getElementById('typing-indicator');
-  if (el) el.remove();
-}
-
-// ==================== 播放语音 ====================
-let audioCtx = null;
-
-function playAudio(base64) {
-  if (!base64) return;
-  try {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // iPhone 上切后台再回来 audioCtx 会被挂起，需要唤醒
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtx.destination);
-      source.start(0);
-    });
-  } catch (e) {
-    console.error('Audio play error:', e);
-  }
-}
-
-// 兜底方案：服务端没生成音频时，用手机/电脑浏览器自带的日语朗读
-// 注意：iPhone Safari、Mac、部分安卓有日语音色，国产 ROM 和微信内置浏览器可能没有
-function speakByBrowser(text) {
-  if (!('speechSynthesis' in window)) {
-    showNotice('この端末は音声読み上げに対応していません');
-    return false;
-  }
-  const voices = window.speechSynthesis.getVoices();
-  const ja = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
-  if (!ja) {
-    // voices 为空（还没加载好）或确实没有日语音色
-    showNotice('日本語の音声がこの端末にありません');
-    return false;
-  }
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'ja-JP';
-  u.rate = 0.9;
-  u.voice = ja;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
-  return true;
-}
-
-// 统一播放入口：优先服务端生成的音频，没有就用浏览器朗读
-function playReply(audioB64, text) {
-  if (audioB64) {
-    playAudio(audioB64);
-  } else if (text) {
-    speakByBrowser(text);
-  }
-}
-
-// 点击"再听一次" — 直接播缓存的语音，不重新调 AI
-chatEl.addEventListener('click', (e) => {
-  if (e.target.classList.contains('play-btn')) {
-    const id = e.target.dataset.audioId;
-    const cached = audioCache.get(id);
-    if (cached) {
-      playAudio(cached);
-    } else if (textCache.has(id)) {
-      speakByBrowser(textCache.get(id));
-    } else {
-      showNotice('音声が見つかりません');
-    }
-  }
-});
-
-// ==================== 语音识别 ====================
-let recognition = null;
-let isListening = false;
-
-function initSpeech() {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    micBtn.style.display = 'none';
-    showNotice('このブラウザは音声入力をサポートしていません');
-    return;
-  }
-
-  recognition = new SpeechRecognition();
-  recognition.lang = 'ja-JP';
-  recognition.interimResults = true;
-  recognition.continuous = false;
-  recognition.maxAlternatives = 1;
-
-  recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = 0; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
-    }
-    inputEl.value = transcript;
-    // 如果是最终结果，自动发送
-    if (event.results[0].isFinal && transcript.trim()) {
-      setTimeout(() => sendMessage(), 300);
-    }
-  };
-
-  recognition.onerror = (event) => {
-    console.error('Speech error:', event.error);
-    stopListening();
-    if (event.error === 'not-allowed') {
-      showNotice('マイクの許可が必要です');
-    } else if (event.error === 'no-speech') {
-      showNotice('音声が検出されませんでした');
-    }
-  };
-
-  recognition.onend = () => stopListening();
-}
-
-function startListening() {
-  if (!recognition) return;
-  try {
-    isListening = true;
-    micBtn.classList.add('listening');
-    statusEl.textContent = '🎤 聞いています…';
-    recognition.start();
-  } catch (e) {
-    stopListening();
-  }
-}
-
-function stopListening() {
-  isListening = false;
-  micBtn.classList.remove('listening');
-  statusEl.textContent = '';
-}
-
-micBtn.addEventListener('click', () => {
-  if (!recognition) {
-    showNotice('音声入力非対応です。キーボードで入力してください');
-    return;
-  }
-  if (isListening) {
-    recognition.stop();
-    stopListening();
-  } else {
-    startListening();
-  }
-});
-
-// ==================== 发送消息 ====================
-let isSending = false;   // 防止连点发送两次
-
-async function sendToAI(text) {
-  if (isSending) return;
-  isSending = true;
-  sendBtn.disabled = true;
-
-  statusEl.textContent = 'さくらが考え中…';
-  addMsg('me', text);
-  showTyping();
-
-  try {
-    const resp = await fetch(API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
-    });
-
-    if (!resp.ok) {
-      // 后端返回的错误原因（比如字数超限）读出来给用户看
-      let msg = `HTTP ${resp.status}`;
-      try {
-        const errData = await resp.json();
-        if (errData.detail) msg = errData.detail;
-      } catch (_) {}
-      throw new Error(msg);
-    }
-
-    const data = await resp.json();
-    hideTyping();
-
-    addMsg('ai', data.reply, true, data.audio_b64);
-
-    // 自动播放语音：服务端有音频就播 mp3，没有则用浏览器朗读兜底
-    playReply(data.audio_b64, data.reply);
-
-    statusEl.textContent = '';
-  } catch (err) {
-    hideTyping();
-    statusEl.textContent = '';
-    showNotice('エラー: ' + err.message, 3000);
-    console.error(err);
-  } finally {
-    isSending = false;
-    sendBtn.disabled = false;
-  }
-}
-
-async function sendMessage() {
-  const text = inputEl.value.trim();
-  if (!text) return;
-  if (isSending) {
-    showNotice('ちょっと待ってね…');
-    return;
-  }
-
-  inputEl.value = '';
-  inputEl.style.height = 'auto';
-  stopListening();
-
-  await sendToAI(text);
-}
-
-// ==================== 事件绑定 ====================
-sendBtn.addEventListener('click', sendMessage);
-
-inputEl.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-});
-
-// 自动调整输入框高度
-inputEl.addEventListener('input', () => {
-  inputEl.style.height = 'auto';
-  inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + 'px';
-});
-
-// ==================== 初始化 ====================
-checkAuth();
-initSpeech();
-scrollBottom();
-
-// 有些浏览器语音列表是异步加载的，先触发一次让 getVoices() 有结果
-if ('speechSynthesis' in window) {
-  window.speechSynthesis.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
-}
-
-// PWA 离线支持
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
-</script>
+<script src="app.js"></script>
 </body>
 </html>

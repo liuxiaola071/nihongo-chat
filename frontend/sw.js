@@ -1,9 +1,9 @@
 // 日本語チャット — Service Worker（网络优先 + 离线兜底）
-const CACHE = 'nihongo-v2';
+const CACHE = 'nihongo-v9';
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(['/', '/manifest.json', '/icon.svg']))
+    caches.open(CACHE).then(c => c.addAll(['/', '/index.html', '/style.css', '/app.js', '/manifest.json', '/icon.svg']))
   );
   self.skipWaiting();
 });

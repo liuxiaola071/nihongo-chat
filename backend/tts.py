@@ -4,16 +4,49 @@
 import requests
 import base64
 import platform
+import hashlib
+from collections import OrderedDict
 from config import ELEVENLABS_API_KEY, VOICE_ID, EDGE_TTS_VOICE, EDGE_TTS_RATE
 
+# ============================================================
+# LRU 缓存：相同文本不重复合成（maxsize=256，够日常用）
+# ============================================================
 
-def text_to_speech_edge(text: str) -> str | None:
+_tts_cache: OrderedDict[str, str] = OrderedDict()
+_tts_cache_max = 256
+
+
+def _cache_key(text: str, rate: str = "") -> str:
+    return hashlib.md5((text + "|" + rate).encode("utf-8")).hexdigest()
+
+
+def _tts_get(text: str, rate: str = "") -> str | None:
+    key = _cache_key(text, rate)
+    if key in _tts_cache:
+        _tts_cache.move_to_end(key)  # 命中时移到末尾（最近使用）
+        return _tts_cache[key]
+    return None
+
+
+def _tts_set(text: str, b64: str, rate: str = ""):
+    key = _cache_key(text, rate)
+    if key in _tts_cache:
+        _tts_cache.move_to_end(key)
+    else:
+        if len(_tts_cache) >= _tts_cache_max:
+            _tts_cache.popitem(last=False)  # 淘汰最久未用
+    _tts_cache[key] = b64
+
+
+def text_to_speech_edge(text: str, rate: str = "") -> str | None:
     """
     用微软 Edge TTS 生成日语语音，返回 base64 编码的 mp3。
 
     优点：完全免费、无额度限制、Linux/Windows/Mac 都能跑，
     用的是日语原生神经网络声音（Nanami / Keita），音质接近付费服务。
     失败返回 None。
+
+    rate: 语速调整，如 "-20%"、"+10%"、""（默认）
     """
     import asyncio
 
@@ -23,8 +56,11 @@ def text_to_speech_edge(text: str) -> str | None:
         print("[TTS-Edge] 未安装 edge-tts，跳过（pip install edge-tts）")
         return None
 
+    # 确定实际语速：优先用传入的 rate，否则用配置默认值
+    actual_rate = rate if rate else EDGE_TTS_RATE
+
     async def _synthesize() -> bytes:
-        comm = edge_tts.Communicate(text, EDGE_TTS_VOICE, rate=EDGE_TTS_RATE)
+        comm = edge_tts.Communicate(text, EDGE_TTS_VOICE, rate=actual_rate)
         chunks = bytearray()
         async for chunk in comm.stream():
             if chunk["type"] == "audio":
@@ -32,6 +68,11 @@ def text_to_speech_edge(text: str) -> str | None:
         return bytes(chunks)
 
     try:
+        # 先查缓存（含语速）
+        cached = _tts_get(text, actual_rate)
+        if cached is not None:
+            return cached
+
         # 用独立事件循环，避免并发请求时 "loop already running" 崩溃
         loop = asyncio.new_event_loop()
         try:
@@ -41,7 +82,9 @@ def text_to_speech_edge(text: str) -> str | None:
         finally:
             loop.close()
         if len(audio) > 100:
-            return base64.b64encode(audio).decode("utf-8")
+            result = base64.b64encode(audio).decode("utf-8")
+            _tts_set(text, result, actual_rate)
+            return result
         print("[TTS-Edge] 返回的音频太小，可能合成失败")
         return None
     except asyncio.TimeoutError:
@@ -52,30 +95,49 @@ def text_to_speech_edge(text: str) -> str | None:
         return None
 
 
-def text_to_speech_elevenlabs(text: str) -> str | None:
+def text_to_speech_elevenlabs(text: str, rate: str = "") -> str | None:
     """
     调用 ElevenLabs API 将日语文字转为语音，返回 base64 编码的 mp3 数据
     失败返回 None
+
+    rate: 语速调整，如 "-20%"、"+10%"、""（默认）
     """
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
     headers = {
         "xi-api-key": ELEVENLABS_API_KEY,
         "Content-Type": "application/json",
     }
+    # 解析语速：rate 如 "-20%" → 0.8, "+10%" → 1.1, "" → 0.9
+    speed = 0.9
+    if rate:
+        try:
+            pct = int(rate.replace("%", ""))
+            speed = round(0.9 * (1 + pct / 100), 2)
+            speed = max(0.3, min(3.0, speed))
+        except ValueError:
+            pass
+
     payload = {
         "text": text,
         "model_id": "eleven_multilingual_v2",
         "voice_settings": {
             "stability": 0.5,
             "similarity_boost": 0.8,
-            "speed": 0.9,  # 稍慢一点，方便学习者听清
+            "speed": speed,
         },
     }
 
     try:
+        # 先查缓存（含语速）
+        cached = _tts_get(text, rate)
+        if cached is not None:
+            return cached
+
         resp = requests.post(url, headers=headers, json=payload, timeout=20)
         if resp.status_code == 200:
-            return base64.b64encode(resp.content).decode("utf-8")
+            result = base64.b64encode(resp.content).decode("utf-8")
+            _tts_set(text, result, rate)
+            return result
         else:
             print(f"[TTS-ElevenLabs] 错误: {resp.status_code} {resp.text[:100]}")
             return None
@@ -144,23 +206,25 @@ $s.Dispose()
         return None
 
 
-def text_to_speech(text: str) -> str | None:
+def text_to_speech(text: str, rate: str = "") -> str | None:
     """
     TTS 主入口，按优先级依次尝试：
-      1. Edge TTS —— 免费无限量、跨平台、日语原生声音（首选）
+      1. Edge TTS —— 免费无限量、跨平台、日语原生声音（首选，含缓存）
       2. ElevenLabs —— 音质最好但有免费额度上限
       3. Windows 内置语音 —— 仅本机开发时的最后兜底
     全部失败返回 None（前端会退化成浏览器自带朗读）。
+
+    rate: 语速，如 "-30%"、"+10%"、""（默认正常速度）
     """
     # 1. Edge TTS（首选：免费且服务器上也能用）
-    result = text_to_speech_edge(text)
+    result = text_to_speech_edge(text, rate)
     if result:
         return result
     print("[TTS] Edge TTS 失败，尝试 ElevenLabs...")
 
     # 2. ElevenLabs（有 Key 才尝试）
     if ELEVENLABS_API_KEY:
-        result = text_to_speech_elevenlabs(text)
+        result = text_to_speech_elevenlabs(text, rate)
         if result:
             return result
         print("[TTS] ElevenLabs 失败，尝试 Windows 内置语音...")
