@@ -1,0 +1,12 @@
+# 告诉 Docker 构建时忽略这些文件（减小镜像体积）
+
+.git/
+node_modules/
+android/
+__pycache__/
+*.pyc
+.env
+.env.example
+*.bat
+_push_out*.txt
+.vscode/
