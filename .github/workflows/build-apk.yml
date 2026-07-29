@@ -1,8 +1,7 @@
 name: Build Android APK
 
+# 已改用 PWA（GitHub Pages）方案，APK 打包不再自动跑，只保留手动触发
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:  # 手动触发
 
 jobs:
