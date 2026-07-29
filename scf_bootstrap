@@ -2,4 +2,8 @@
 # 腾讯云函数 SCF Web 函数启动脚本
 # SCF 要求 Web 函数监听 9000 端口，并且本文件权限必须是 755
 export PORT=9000
+# 第三方依赖打包在 pkg/ 目录里，SCF 不会自动 pip install，需要手动加进搜索路径
+export PYTHONPATH=/var/user/pkg:$PYTHONPATH
+# SRS 数据目录（云函数只有 /tmp 可写）
+export NIHONGO_DATA_DIR=/tmp/nihongo_data
 python3 backend/server.py

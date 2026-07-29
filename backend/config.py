@@ -72,6 +72,13 @@ ACCESS_CODE = os.getenv("ACCESS_CODE", "")
 HOST = "0.0.0.0"
 PORT = int(os.getenv("PORT", "8765"))  # Render 自动注入 PORT 环境变量
 
+# 数据存放目录（对话记录 / SRS / 单词本 / 统计）
+# 本地默认 backend/data；部署到云函数等只读环境时，用 NIHONGO_DATA_DIR 指到 /tmp
+DATA_DIR = os.getenv(
+    "NIHONGO_DATA_DIR",
+    os.path.join(os.path.dirname(__file__), "data"),
+)
+
 # 对话限制
 MAX_INPUT_LENGTH = 500   # 单条输入最大字数，防止刷爆 API
 MAX_HISTORY_TURNS = 10   # 记住最近 10 轮对话（1 轮 = 你说 + さくら答）

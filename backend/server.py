@@ -13,11 +13,13 @@ import threading
 from datetime import date, datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from ai import chat_with_sakura, reset_history, export_markdown
 from tts import text_to_speech
+import config as _cfg
 from config import HOST, PORT, MAX_INPUT_LENGTH, ACCESS_CODE
 from scenarios import list_scenarios, get_scenario
 from assist import get_translation_quiz, RESCUE_PHRASES, check_completion, get_counter_quiz
@@ -28,20 +30,49 @@ import uvicorn
 
 app = FastAPI(title="日本語チャット", version="1.6")
 
+# CORS：允许前端从 GitHub Pages 等跨域调用 API
+# 认证走请求头（X-Access-Code），不依赖 cookie，所以不需要 allow_credentials
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def _fix_content_disposition(request: Request, call_next):
+    """腾讯云 SCF 网关默认给所有响应加 Content-Disposition: attachment，
+    导致浏览器把 HTML 页面当文件下载。改成 inline 让浏览器正常渲染。"""
+    resp = await call_next(request)
+    cd = resp.headers.get("content-disposition")
+    if cd and cd.startswith("attachment"):
+        resp.headers["content-disposition"] = cd.replace("attachment", "inline", 1)
+    return resp
+
+
 # ---------- 认证 & 会话 ----------
 AUTH_COOKIE = "nihongo_auth"
 SESSION_COOKIE = "nihongo_sid"
 
 
 def _require_auth(request: Request):
-    """如果配置了访问口令，检查 cookie 是否已认证"""
-    if ACCESS_CODE and request.cookies.get(AUTH_COOKIE) != "1":
+    """如果配置了访问口令，检查 cookie 或请求头是否已认证"""
+    if ACCESS_CODE:
+        # cookie（本地同源）或 X-Access-Code 头（跨域部署）
+        if request.cookies.get(AUTH_COOKIE) == "1":
+            return
+        if request.headers.get("x-access-code") == ACCESS_CODE:
+            return
         raise HTTPException(status_code=401, detail="認証が必要です")
 
 
 def _get_session(request: Request, response: Response) -> str:
-    """获取或创建会话 ID（写入 cookie），用于隔离不同用户的对话记忆"""
-    sid = request.cookies.get(SESSION_COOKIE)
+    """获取或创建会话 ID，用于隔离不同用户的对话记忆"""
+    # 优先用请求头 X-Session-Id（跨域部署），其次用 cookie（本地开发）
+    sid = request.headers.get("x-session-id")
+    if not sid:
+        sid = request.cookies.get(SESSION_COOKIE)
     if not sid:
         sid = uuid.uuid4().hex
         response.set_cookie(
@@ -90,6 +121,8 @@ def auth_check(request: Request):
     if not ACCESS_CODE:
         return {"status": "ok"}
     if request.cookies.get(AUTH_COOKIE) == "1":
+        return {"status": "ok"}
+    if request.headers.get("x-access-code") == ACCESS_CODE:
         return {"status": "ok"}
     raise HTTPException(status_code=401, detail="認証が必要です")
 
@@ -372,7 +405,7 @@ class SrsGradeRequest(BaseModel):
 # 打卡 & 场景通关 & 错误本 — 追踪数据
 # ============================================================
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = _cfg.DATA_DIR
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ERRORS_FILE = os.path.join(DATA_DIR, "errors.json")
 _stats_lock = threading.Lock()

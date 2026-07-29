@@ -7,9 +7,11 @@ import re
 import threading
 from datetime import date
 
-# 单词本存放位置（backend/data/vocab.json）
-# ⚠️ Render 免费版磁盘是临时的，重启会清空 → 记得定期导出
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+import config as _cfg
+
+# 单词本存放位置（默认 backend/data/vocab.json，云函数上由 NIHONGO_DATA_DIR 指到 /tmp）
+# ⚠️ 磁盘是临时的，重启会清空 → 记得定期导出
+DATA_DIR = _cfg.DATA_DIR
 VOCAB_FILE = os.path.join(DATA_DIR, "vocab.json")
 
 # AI 回复末尾的生词标记，例如：

@@ -10,7 +10,9 @@ import os
 import threading
 from datetime import date, timedelta
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+import config as _cfg
+
+DATA_DIR = _cfg.DATA_DIR
 SRS_FILE = os.path.join(DATA_DIR, "srs.json")
 
 _lock = threading.Lock()

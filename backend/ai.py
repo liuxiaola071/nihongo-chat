@@ -6,6 +6,7 @@ import json
 import os
 import threading
 import requests
+import config as _cfg
 from config import DEEPSEEK_API_KEY, DEEPSEEK_MODEL, MAX_HISTORY_TURNS
 from scenarios import get_scenario
 
@@ -126,7 +127,7 @@ MAX_SESSIONS = 200                     # 最多同时保留多少个会话
 SESSION_TTL = 86400                    # 超过 24 小时没活动的会话自动清理
 
 # ── 对话历史持久化 ──
-HISTORY_FILE = os.path.join(os.path.dirname(__file__), "data", "chat_history.json")
+HISTORY_FILE = os.path.join(_cfg.DATA_DIR, "chat_history.json")
 _history_lock = threading.Lock()
 _history_loaded = False
 _save_timer: threading.Timer | None = None
