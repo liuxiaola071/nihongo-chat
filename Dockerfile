@@ -1,5 +1,5 @@
 # 日本語チャット — Docker 镜像
-# 用于 Hugging Face Spaces（端口 7860）
+# 用于腾讯云函数 SCF Web 函数（默认监听 9000 端口）
 
 FROM python:3.12-slim
 
@@ -13,9 +13,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 复制整个项目（backend + frontend）
 COPY . .
 
-# Hugging Face Spaces 固定使用 7860 端口
-ENV PORT=7860
-EXPOSE 7860
+# 腾讯云函数 SCF Web 函数默认监听 9000 端口
+# 平台若注入 PORT 环境变量，config.py 会自动读取并覆盖
+ENV PORT=9000
+EXPOSE 9000
 
 # 启动命令：进入 backend 目录运行 server.py
 CMD ["python", "backend/server.py"]

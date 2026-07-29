@@ -1,0 +1,5 @@
+#!/bin/bash
+# 腾讯云函数 SCF Web 函数启动脚本
+# SCF 要求 Web 函数监听 9000 端口，并且本文件权限必须是 755
+export PORT=9000
+python3 backend/server.py
