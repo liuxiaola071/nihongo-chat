@@ -1,5 +1,5 @@
-// ==================== 日本語チャット v1.6 — App ====================
-// さくらと話そう。AI 日语会话练习 PWA
+// ==================== 日语聊天 v1.6 — App ====================
+// 跟小樱聊天。AI 日语会话练习 PWA
 
 // ==================== 配置 ====================
 const isApp = location.protocol === 'file:' || location.protocol === 'capacitor:';
@@ -35,7 +35,7 @@ async function safeFetch(url, opts = {}) {
     const nowTs = Date.now();
     if (nowTs - _lastNetErrorTime > 3000) {
       _lastNetErrorTime = nowTs;
-      showNotice('⚠️ サーバーに接続できません', 3000);
+      showNotice('⚠️ 无法连接到服务器', 3000);
     }
     throw err;
   }
@@ -94,12 +94,12 @@ async function tryUnlock() {
       document.getElementById('auth-overlay').classList.add('hidden');
       onUnlocked();
     } else {
-      errEl.textContent = 'パスワードが違います';
+      errEl.textContent = '口令不对';
       input.value = '';
       input.focus();
     }
   } catch (e) {
-    errEl.textContent = '通信エラー';
+    errEl.textContent = '网络错误';
   }
 }
 
@@ -119,10 +119,10 @@ document.getElementById('server-save').addEventListener('click', () => {
   const url = serverInput.value.trim();
   if (url) {
     localStorage.setItem('nihongo_server', url);
-    document.getElementById('server-msg').textContent = '✅ 保存しました';
+    document.getElementById('server-msg').textContent = '✅ 已保存';
   } else {
     localStorage.removeItem('nihongo_server');
-    document.getElementById('server-msg').textContent = '🗑 クリアしました';
+    document.getElementById('server-msg').textContent = '🗑 已清空';
   }
   setTimeout(() => { document.getElementById('server-msg').textContent = ''; }, 2000);
 });
@@ -229,14 +229,14 @@ function addMsg(role, text, opts = {}) {
       </div>`;
     }).join('');
     html += `<div class="fix-card">
-      <div class="fix-title">📝 修正ポイント</div>
+      <div class="fix-title">📝 修正要点</div>
       ${fixLines}
     </div>`;
   }
 
   // 场景达成
   if (sceneDone) {
-    html += '<span class="scene-done-badge">🎉 ミッション達成！</span>';
+    html += '<span class="scene-done-badge">🎉 任务完成！</span>';
   }
 
   // 重听按钮
@@ -247,8 +247,8 @@ function addMsg(role, text, opts = {}) {
     } else {
       _cacheSet(textCache, id, text, MAX_TEXT_CACHE);
     }
-    html += `<br><span class="play-btn" data-audio-id="${id}">🔊 もう一度聞く</span>`;
-    html += `<span class="furi-btn" data-furi-text="${escapeHtml(text)}">あ ふりがな</span>`;
+    html += `<br><span class="play-btn" data-audio-id="${id}">🔊 再听一遍</span>`;
+    html += `<span class="furi-btn" data-furi-text="${escapeHtml(text)}">注假名</span>`;
     html += `<span class="shadow-btn" data-shadow-text="${escapeHtml(text)}">🗣️ 跟读</span>`;
   }
 
@@ -268,7 +268,7 @@ function addMsg(role, text, opts = {}) {
     html += `<div class="word-chips">${chips}</div>`;
   }
 
-  const label = role === 'me' ? now() : 'さくら';
+  const label = role === 'me' ? now() : '小樱';
   html += `<div class="time">${escapeHtml(label)}</div>`;
   // 纠错提示
   if (fixItems && fixItems.length > 0) {
@@ -349,13 +349,13 @@ function playAudio(base64) {
 function speakByBrowser(text) {
   return new Promise((resolve) => {
     if (!('speechSynthesis' in window)) {
-      showNotice('この端末は音声読み上げに対応していません');
+      showNotice('当前设备不支持语音朗读');
       resolve(false); return;
     }
     const voices = window.speechSynthesis.getVoices();
     const ja = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ja'));
     if (!ja) {
-      showNotice('日本語の音声がこの端末にありません');
+      showNotice('当前设备没有日语语音包');
       resolve(false); return;
     }
     const u = new SpeechSynthesisUtterance(text);
@@ -387,7 +387,7 @@ chatEl.addEventListener('click', (e) => {
     } else if (textCache.has(id)) {
       speakByBrowser(textCache.get(id));
     } else {
-      showNotice('音声が見つかりません');
+      showNotice('没找到语音');
     }
   }
 
@@ -413,7 +413,7 @@ chatEl.addEventListener('click', (e) => {
   }
 });
 
-// ==================== 振假名（ふりがな）====================
+// ==================== 振假名（注假名）====================
 const furiCache = new Map();   // 原文 -> ruby HTML，避免重复请求
 const MAX_FURI_CACHE = 100;
 
@@ -446,7 +446,7 @@ async function toggleFurigana(btn) {
   const text = btn.dataset.furiText;
   if (!text) return;
 
-  btn.textContent = 'あ ...';
+  btn.textContent = '注 ...';
   try {
     const rubyHtml = await fetchFurigana(text);
     if (!msg.dataset.plainHtml) msg.dataset.plainHtml = body.innerHTML;
@@ -455,9 +455,9 @@ async function toggleFurigana(btn) {
     btn.classList.add('active');
   } catch (err) {
     console.error(err);
-    showNotice('ふりがなの取得に失敗しました');
+    showNotice('注假名获取失败');
   } finally {
-    btn.textContent = 'あ ふりがな';
+    btn.textContent = '注假名';
   }
 }
 
@@ -471,7 +471,7 @@ async function speakSentence(text) {
     await playAudio(sentenceAudioCache.get(text));
     return;
   }
-  statusEl.textContent = '🔊 読み上げ中…';
+  statusEl.textContent = '🔊 朗读中…';
   try {
     const resp = await safeFetch(SERVER_URL + '/api/tts', {
       method: 'POST',
@@ -540,7 +540,7 @@ async function toggleTranslation(btn) {
     btn.classList.add('active');
   } catch (err) {
     console.error('Translation error:', err);
-    showNotice('翻訳に失敗しました', 2000);
+    showNotice('翻译失败', 2000);
   } finally {
     btn.textContent = '中 訳文';
   }
@@ -552,7 +552,7 @@ function initSpeech() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     micBtn.style.display = 'none';
-    showNotice('このブラウザは音声入力をサポートしていません');
+    showNotice('当前浏览器不支持语音输入');
     return;
   }
 
@@ -579,7 +579,7 @@ function initSpeech() {
     console.error('Speech error:', event.error);
     stopListening();
     if (event.error === 'not-allowed') {
-      showNotice('マイクの許可が必要です');
+      showNotice('需要允许使用麦克风');
       stopHandsFree();  // 权限被拒 → 退出免提
     } else if (event.error === 'no-speech') {
       if (handsFreeMode) {
@@ -587,7 +587,7 @@ function initSpeech() {
         statusEl.textContent = '🎧 …';
         setTimeout(() => { if (handsFreeMode) startListening(); }, 1500);
       } else {
-        showNotice('音声が検出されませんでした');
+        showNotice('没有检测到语音');
       }
     }
   };
@@ -600,7 +600,7 @@ function initSpeech() {
     }
   };
 
-  // 跟读发音打分用の音声認識も一緒に初期化
+  // 跟读发音打分用的语音识别也一起初始化
   initScoreSpeech();
 }
 
@@ -611,7 +611,7 @@ function startListening() {
     recognition.lang = recognitionLang;  // 同步当前语言
     isListening = true;
     micBtn.classList.add('listening');
-    statusEl.textContent = recognitionLang === 'zh-CN' ? '🎤 听中文中…' : '🎤 聞いています…';
+    statusEl.textContent = recognitionLang === 'zh-CN' ? '🎤 听中文中…' : '🎤 听日语中…';
     recognition.start();
   } catch (e) {
     stopListening();
@@ -631,7 +631,7 @@ function stopListening() {
 
 micBtn.addEventListener('click', () => {
   if (!recognition) {
-    showNotice('音声入力非対応です。キーボードで入力してください');
+    showNotice('不支持语音输入，请用键盘输入');
     return;
   }
   if (isListening) {
@@ -647,13 +647,13 @@ const handsFreeBtn = document.getElementById('handsfree-btn');
 
 function startHandsFree() {
   if (!recognition) {
-    showNotice('音声入力非対応です');
+    showNotice('不支持语音输入');
     return;
   }
   handsFreeMode = true;
   handsFreeBtn.classList.add('active');
   handsFreeBtn.textContent = '🎧';
-  showNotice('🎧 免提モード ON — 話しかけてね', 2500);
+  showNotice('🎧 免提模式已开 — 直接说话吧', 2500);
   // 立即开始听
   setTimeout(() => startListening(), 300);
 }
@@ -668,7 +668,7 @@ handsFreeBtn.addEventListener('click', () => {
   if (handsFreeMode) {
     stopHandsFree();
     if (isListening) { recognition.stop(); stopListening(); }
-    showNotice('🎧 免提モード OFF', 1500);
+    showNotice('🎧 免提模式已关', 1500);
   } else {
     startHandsFree();
   }
@@ -712,12 +712,12 @@ function switchMode(modeId) {
   });
   // 更新 placeholder
   const placeholders = {
-    chat: '日本語で話しかけてね…',
-    correct: '日本語を入力すると添削します…',
-    translate: '翻訳したい文章を入力…',
-    word: '調べたい単語を入力…',
+    chat: '用日语或中文跟我说话…',
+    correct: '输入日语，我帮你批改…',
+    translate: '输入要翻译的句子（中日互译）…',
+    word: '输入要查的单词…',
   };
-  inputEl.placeholder = placeholders[modeId] || '日本語で話しかけてね…';
+  inputEl.placeholder = placeholders[modeId] || '用日语或中文跟我说话…';
 }
 
 document.getElementById('mode-bar').addEventListener('click', (e) => {
@@ -762,8 +762,8 @@ function renderScenarios() {
     cats.get(cat).push(s);
   }
   const catNames = {
-    social: '🤝 社交', shop: '🛒 買い物', travel: '🧳 旅行',
-    work: '💼 仕事', study: '🎓 勉強', emergency: '🚨 緊急', other: '💬 その他',
+    social: '🤝 社交', shop: '🛒 购物', travel: '🧳 旅行',
+    work: '💼 工作', study: '🎓 学习', emergency: '🚨 紧急', other: '💬 其他',
   };
 
   let html = '';
@@ -781,7 +781,7 @@ function renderScenarios() {
 }
 
 async function switchScenario(sid) {
-  if (isSending) { showNotice('ちょっと待ってね…'); return; }
+  if (isSending) { showNotice('稍等一下…'); return; }
   closeSheet('scene-sheet');
   try {
     const resp = await safeFetch(SERVER_URL + `/api/scenario/${encodeURIComponent(sid)}`, { method: 'POST' });
@@ -795,9 +795,9 @@ async function switchScenario(sid) {
     // 不清空聊天窗口，历史对话一直保留，只在末尾接上新场景的开场白
     addMsg('ai', sc.opening, { withAudio: true });
     _saveHistoryLocally('ai', sc.opening);
-    showNotice(`${sc.emoji} ${sc.name}モード`, 2000);
+    showNotice(`${sc.emoji} ${sc.name}模式`, 2000);
   } catch (err) {
-    showNotice('エラー: ' + err.message, 3000);
+    showNotice('出错了: ' + err.message, 3000);
   }
 }
 
@@ -927,7 +927,7 @@ function renderVocab(words, allDays) {
           <span class="k">${escapeHtml(w.kana || '')}</span>
           <span class="m">${escapeHtml(w.meaning || '')}</span>
         </div>`).join('')
-    : '<div class="vocab-empty">まだ単語がありません。<br>さくらと話すと自動でたまります🌸</div>';
+    : '<div class="vocab-empty">还没有生词。<br>跟小樱聊天会自动收集🌸</div>';
 }
 
 vocabDaysEl.addEventListener('click', (e) => {
@@ -944,7 +944,7 @@ document.getElementById('vocab-export').addEventListener('click', () => {
   const all    = _readVocab();
   const day    = vocabDay || getToday();
   const words  = all[day] || [];
-  if (!words.length) { showNotice('この日の単語はありません', 2000); return; }
+  if (!words.length) { showNotice('这一天没有生词', 2000); return; }
 
   let csv = '\ufeff正面,背面\n';
   for (const w of words) {
@@ -961,18 +961,18 @@ document.getElementById('vocab-export').addEventListener('click', () => {
   a.download = `nihongo_vocab_${day}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-  showNotice('📥 ダウンロードしました', 2000);
+  showNotice('📥 已下载', 2000);
 });
 
 document.getElementById('vocab-clear').addEventListener('click', () => {
   const day = vocabDay || getToday();
-  if (!confirm(`${day} の単語を全部消しますか？`)) return;
+  if (!confirm(`${day}  的生词全部删除吗？`)) return;
   const all = _readVocab();
   delete all[day];
   _writeVocab(all);
   loadVocab(day);
   if (!vocabDay || vocabDay === getToday()) { vocabCount = 0; renderBadge(); }
-  showNotice('クリアしました', 1500);
+  showNotice('已清空', 1500);
 });
 
 // ==================== SRS 间隔复习 ====================
@@ -1037,7 +1037,7 @@ function showReviewCard() {
   const w = reviewWords[reviewIndex];
   reviewWordEl.textContent = w.word;
   reviewKanaEl.textContent = w.kana || '';
-  reviewMeaning.textContent = w.meaning || '(意味なし)';
+  reviewMeaning.textContent = w.meaning || '(无释义)';
   reviewFlipped = false;
   reviewBack.classList.add('hidden');
   reviewHint.classList.remove('hidden');
@@ -1071,7 +1071,7 @@ async function gradeWord(quality) {
     renderReviewStats(data.stats);
   } catch (err) {
     console.error('SRS grade error:', err);
-    showNotice('エラーが発生しました', 2000);
+    showNotice('出错了', 2000);
   }
   reviewGrades.style.opacity = '1';
   reviewIndex++;
@@ -1146,13 +1146,13 @@ function clearLocalHistory() {
 
 // 手动清空对话历史（唯一清理入口，切换场景不再清空）
 document.getElementById('clear-history-btn')?.addEventListener('click', async () => {
-  if (!confirm('会話履歴を全部消しますか？')) return;
+  if (!confirm('要清空全部对话历史吗？')) return;
   clearLocalHistory();
   try { await safeFetch(SERVER_URL + '/api/reset', { method: 'POST' }); } catch (_) {}
   chatEl.innerHTML = '';
   audioCache.clear();
   textCache.clear();
-  showNotice('履歴をクリアしました', 1500);
+  showNotice('对话历史已清空', 1500);
 });
 
 // ==================== 弹层开关 ====================
@@ -1171,7 +1171,7 @@ async function sendToAI(text) {
   isSending = true;
   sendBtn.disabled = true;
 
-  statusEl.textContent = 'さくらが考え中…';
+  statusEl.textContent = '小樱正在思考…';
   addMsg('me', text);
   _saveHistoryLocally('me', text);  // 保存用户消息到本地
   showTyping();
@@ -1218,7 +1218,7 @@ async function sendToAI(text) {
     }
 
     if (!listeningMode) {
-      statusEl.textContent = '🔊 読み上げ中…';
+      statusEl.textContent = '🔊 朗读中…';
       await playReply(data.audio_b64, data.reply);
     }
     statusEl.textContent = '';
@@ -1230,7 +1230,7 @@ async function sendToAI(text) {
   } catch (err) {
     hideTyping();
     statusEl.textContent = '';
-    showNotice('エラー: ' + err.message, 3000);
+    showNotice('出错了: ' + err.message, 3000);
     console.error(err);
   } finally {
     isSending = false;
@@ -1242,7 +1242,7 @@ async function sendMessage() {
   const text = inputEl.value.trim();
   if (!text) return;
   if (isSending) {
-    showNotice('ちょっと待ってね…');
+    showNotice('稍等一下…');
     return;
   }
 
@@ -1319,7 +1319,7 @@ async function loadQuiz(level) {
     showQuizQuestion();
   } catch (err) {
     console.error('Quiz load error:', err);
-    showNotice('問題の読み込みに失敗しました', 2000);
+    showNotice('题目加载失败', 2000);
   }
 }
 
@@ -1360,7 +1360,7 @@ function showQuizQuestion() {
 
   // 更新题目标签
   document.querySelector('.quiz-question-label').textContent =
-    quizDirection === 'jp2cn' ? '日本語 → 中国語に翻訳してください：' : '中国語 → 日本語に翻訳してください：';
+    quizDirection === 'jp2cn' ? '请翻译成中文：' : '请翻译成日语：';
 }
 
 function checkQuizAnswer() {
@@ -1386,7 +1386,7 @@ function checkQuizAnswer() {
   } else {
     inputEl.classList.add('wrong');
     feedbackEl.className = 'quiz-feedback ng';
-    feedbackEl.innerHTML = `❌ 違います<br>正解：<b>${escapeHtml(correctAnswer)}</b>`;
+    feedbackEl.innerHTML = `❌ 不对<br>正确答案：<b>${escapeHtml(correctAnswer)}</b>`;
   }
   feedbackEl.classList.remove('hidden');
   inputEl.disabled = true;
@@ -1413,7 +1413,7 @@ function showQuizEmpty() {
   cardEl.style.display = 'none';
   resultEl.classList.remove('hidden');
   resultEmoji.textContent = '📭';
-  resultText.textContent = 'このレベルの問題はまだありません。';
+  resultText.textContent = '这个难度还没有题目。';
 }
 
 function showQuizResult() {
@@ -1472,8 +1472,8 @@ document.getElementById('quiz-btn')?.addEventListener('click', () => {
 // ==================== 语气切换 ====================
 document.getElementById('tone-select')?.addEventListener('change', (e) => {
   currentTone = e.target.value;
-  const labels = { polite: '😊 敬語', casual: '😎 タメ口', kansai: '🐙 関西弁' };
-  showNotice('話し方: ' + (labels[currentTone] || currentTone), 1500);
+  const labels = { polite: '😊 敬语', casual: '😎 随意', kansai: '🐙 关西话' };
+  showNotice('说话风格: ' + (labels[currentTone] || currentTone), 1500);
 });
 
 // ==================== 听力模式 ====================
@@ -1497,9 +1497,9 @@ document.getElementById('export-btn')?.addEventListener('click', async () => {
     a.download = 'nihongo_chat.md';
     a.click();
     URL.revokeObjectURL(url);
-    showNotice('📥 エクスポートしました', 2000);
+    showNotice('📥 已导出', 2000);
   } catch (err) {
-    showNotice('エクスポート失敗: ' + err.message, 2500);
+    showNotice('导出失败: ' + err.message, 2500);
   }
 });
 
@@ -1515,11 +1515,11 @@ async function loadStats() {
 async function showStats() {
   const container = document.getElementById('stats-content');
   if (!container) return;
-  container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">読み込み中…</p>';
+  container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">加载中…</p>';
   
   const stats = await loadStats();
   if (!stats) {
-    container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">読み込み失敗</p>';
+    container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">加载失败</p>';
     return;
   }
 
@@ -1540,16 +1540,16 @@ async function showStats() {
       </div>
       <div class="stat-card">
         <div class="stat-num">${stats.total_scenes_done || 0}</div>
-        <div class="stat-label">クリアシーン ✅</div>
+        <div class="stat-label">完成场景 ✅</div>
       </div>
       <div class="stat-card">
         <div class="stat-num">${weakness.total_errors || 0}</div>
-        <div class="stat-label">ミス数 📕</div>
+        <div class="stat-label">错误数 📕</div>
       </div>
     </div>
     ${cats ? `<div style="margin-top:12px"><span style="font-size:13px;color:var(--text-dim)">弱点分析：</span>${cats}</div>` : ''}
     <div style="margin-top:12px;font-size:12px;color:var(--text-dim);text-align:center">
-      今日${stats.today_active ? '✅ 学習済み' : 'まだ学習していません'}
+      今日${stats.today_active ? '✅ 已学习' : '还没有学习'}
     </div>
   `;
 }
@@ -1578,12 +1578,12 @@ async function loadCounter() {
       document.getElementById('counter-card').style.display = 'none';
       document.getElementById('counter-result').classList.remove('hidden');
       document.getElementById('counter-result-emoji').textContent = '📭';
-      document.getElementById('counter-result-text').textContent = '問題がありません';
+      document.getElementById('counter-result-text').textContent = '没有题目';
       return;
     }
     showCounterQuestion();
   } catch (err) {
-    showNotice('問題の読み込み失敗: ' + err.message, 2500);
+    showNotice('题目加载失败: ' + err.message, 2500);
   }
 }
 
@@ -1618,7 +1618,7 @@ function checkCounterAnswer() {
     feedback.innerHTML = `✅ 正解！「${escapeHtml(q.reading)}」`;
   } else {
     feedback.className = 'quiz-feedback ng';
-    feedback.innerHTML = `❌ 正解は「<b>${escapeHtml(q.reading)}</b>」(${escapeHtml(q.a)})`;
+    feedback.innerHTML = `❌ 正确答案是「<b>${escapeHtml(q.reading)}</b>」(${escapeHtml(q.a)})`;
   }
   feedback.classList.remove('hidden');
   input.disabled = true;
@@ -1749,21 +1749,21 @@ function initScoreSpeech() {
 /** 跟读一条句子：示范朗读 → 倒计时 → 录音 → 评分卡片 */
 async function startShadowing(sentence) {
   if (!scoreSupported || !scoreRecognition) {
-    showNotice('この端末は発音チェック非対応です（Chrome/Safari推奨）', 2500);
+    showNotice('当前设备不支持发音检测（建议用 Chrome / Safari）', 2500);
     return;
   }
-  // 1) さくら先示范朗读
+  // 1) 小樱先示范朗读
   await speakSentence(sentence);
 
   // 2) 倒计时提示
-  showShadowStatus('🎧 よく聞いて…もう一回読むよ');
+  showShadowStatus('🎧 仔细听…我再读一遍');
   await speakSentence(sentence);
 
-  showShadowStatus('🗣️ 3秒後に録音開始…真似して読んでね！');
+  showShadowStatus('🗣️ 3 秒后开始录音…请跟着读！');
   await sleep(3000);
 
   // 3) 开始录音识别
-  showShadowStatus('🎤 録音中…話して！');
+  showShadowStatus('🎤 录音中…请说！');
   scoreRecognition.onresult = (event) => {
     const res = event.results[0];
     const best = res[0];
@@ -1778,11 +1778,11 @@ async function startShadowing(sentence) {
   };
   scoreRecognition.onerror = (e) => {
     if (e.error === 'no-speech') {
-      showShadowStatus('😶 音声が検出されませんでした。もう一回やってみよう');
+      showShadowStatus('😶 没有检测到声音，再试一次吧');
     } else if (e.error === 'not-allowed') {
-      showShadowStatus('🎤 マイクの許可が必要です');
+      showShadowStatus('🎤 需要允许使用麦克风');
     } else {
-      showShadowStatus('🎤 聞き取れませんでした（' + e.error + '）');
+      showShadowStatus('🎤 没听清（' + e.error + '）');
     }
     setTimeout(hideShadowStatus, 2500);
   };
@@ -1816,10 +1816,10 @@ function comparePronunciation(original, spoken, confidence) {
   const score = Math.round((textSim * 0.7 + confidence * 0.3) * 100);
 
   let emoji, comment;
-  if (score >= 90)      { emoji = '😎'; comment = '完璧！ネイティブみたい！'; }
-  else if (score >= 75) { emoji = '😊'; comment = 'すごくいい！この調子！'; }
-  else if (score >= 55) { emoji = '🤔'; comment = 'まあまあ。もう一回ゆっくり読んでみよう'; }
-  else                  { emoji = '😅'; comment = '聞き取りにくかったかも。お手本をよく聞いて真似してね'; }
+  if (score >= 90)      { emoji = '😎'; comment = '完美！像母语者一样！'; }
+  else if (score >= 75) { emoji = '😊'; comment = '很棒！保持这个状态！'; }
+  else if (score >= 55) { emoji = '🤔'; comment = '还行。再慢慢读一遍试试'; }
+  else                  { emoji = '😅'; comment = '有点听不清，仔细听示范再模仿一下'; }
   return { score, emoji, comment };
 }
 
@@ -1851,16 +1851,16 @@ function showShadowResult(target, spoken, verdict, alts) {
   const card = document.createElement('div');
   card.className = 'shadow-card';
   card.innerHTML = `
-    <div class="shadow-head">🗣️ 発音チェック <button class="shadow-close">×</button></div>
+    <div class="shadow-head">🗣️ 发音检测 <button class="shadow-close">×</button></div>
     <div class="shadow-score ${verdict.score>=75?'good':verdict.score>=55?'mid':'low'}">
       <span class="shadow-emoji">${verdict.emoji}</span>
       <span class="shadow-num">${verdict.score}<small>点</small></span>
     </div>
     <div class="shadow-comment">${escapeHtml(verdict.comment)}</div>
-    <div class="shadow-target"><b>お手本：</b>${escapeHtml(target)}</div>
-    <div class="shadow-spoken"><b>あなたの発音：</b>${escapeHtml(spoken)}</div>
+    <div class="shadow-target"><b>示范：</b>${escapeHtml(target)}</div>
+    <div class="shadow-spoken"><b>你的发音：</b>${escapeHtml(spoken)}</div>
     ${altHtml}
-    <button class="shadow-retry">🔄 もう一回</button>
+    <button class="shadow-retry">🔄 再来一次</button>
   `;
   document.body.appendChild(card);
   card.querySelector('.shadow-close').onclick = () => card.remove();

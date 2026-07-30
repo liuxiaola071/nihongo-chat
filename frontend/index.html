@@ -3,37 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="description" content="AI日本語会話パートナー — さくらと話そう。シーン別会話練習・生詞自動収集・音声読み上げ対応。">
+  <meta name="description" content="AI日语会话搭子 — 跟小樱聊天。场景会话练习、生词自动收集、语音朗读。">
 <meta name="theme-color" content="#0f0f0f">
 <!-- iOS PWA -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="日本語">
+<meta name="apple-mobile-web-app-title" content="日语聊天">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!-- Splash Screen (iOS) -->
 <link rel="apple-touch-startup-image" href="apple-touch-icon.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
 <link rel="manifest" href="manifest.json">
-<title>日本語チャット</title>
+<title>日语聊天</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <header>
   <button class="hdr-btn" id="scene-btn">💬 <span id="scene-label">自由聊天</span></button>
-  <h1>🎌 さくらと話そう</h1>
-  <div class="sub">AI日本語会話パートナー</div>
-  <button class="hdr-btn" id="vocab-btn">📓 単語<span class="badge" id="vocab-badge">0</span></button>
-  <button class="hdr-btn" id="review-btn">📝 復習<span class="badge" id="review-badge">0</span></button>
-  <button class="hdr-btn" id="rescue-btn">🆘 救急</button>
-  <button class="hdr-btn" id="quiz-btn">📝 練習</button>
+  <h1>🎌 跟小樱聊天</h1>
+  <div class="sub">AI 日语会话搭子</div>
+  <button class="hdr-btn" id="vocab-btn">📓 生词<span class="badge" id="vocab-badge">0</span></button>
+  <button class="hdr-btn" id="review-btn">📝 复习<span class="badge" id="review-badge">0</span></button>
+  <button class="hdr-btn" id="rescue-btn">🆘 救急短语</button>
+  <button class="hdr-btn" id="quiz-btn">📝 翻译练习</button>
 </header>
 
 <!-- 模式切换 + 难度选择 -->
 <div id="mode-bar">
-  <span class="mode-chip active" data-mode="chat">💬 会話</span>
-  <span class="mode-chip" data-mode="correct">📝 添削</span>
-  <span class="mode-chip" data-mode="translate">🔄 翻訳</span>
-  <span class="mode-chip" data-mode="word">📖 辞書</span>
+  <span class="mode-chip active" data-mode="chat">💬 聊天</span>
+  <span class="mode-chip" data-mode="correct">📝 批改</span>
+  <span class="mode-chip" data-mode="translate">🔄 翻译</span>
+  <span class="mode-chip" data-mode="word">📖 查词</span>
   <select id="level-select">
     <option value="N5">N5</option>
     <option value="N4" selected>N4</option>
@@ -41,17 +41,17 @@
     <option value="N2">N2</option>
     <option value="N1">N1</option>
   </select>
-  <select id="speed-select" title="語速">
+  <select id="speed-select" title="语速">
     <option value="-50%">🐢 0.5x</option>
     <option value="-25%">🐇 0.75x</option>
     <option value="" selected>🚶 1.0x</option>
     <option value="+25%">🏃 1.25x</option>
     <option value="+50%">💨 1.5x</option>
   </select>
-  <select id="tone-select" title="話し方">
-    <option value="polite" selected>😊 敬語</option>
-    <option value="casual">😎 タメ口</option>
-    <option value="kansai">🐙 関西弁</option>
+  <select id="tone-select" title="说话风格">
+    <option value="polite" selected>😊 敬语</option>
+    <option value="casual">😎 随意</option>
+    <option value="kansai">🐙 关西话</option>
   </select>
   <button class="mode-chip" id="listening-toggle" title="听力模式：只听不说">🔇</button>
   <button class="mode-chip" id="handsfree-btn" title="免提对话：自动 听→说→听 循环">🎧</button>
@@ -65,7 +65,7 @@
 <div id="chat">
   <div class="msg ai">
     こんにちは！さくらです🌸<br>今日は何について話しましょうか？
-    <div class="time">さくら</div>
+    <div class="time">小樱（你好！我是小樱，今天想聊什么？）</div>
   </div>
 </div>
 
@@ -78,9 +78,9 @@
 </div>
 
 <div id="input-area">
-  <button class="btn" id="mic-btn" title="音声入力">🎤</button>
-  <textarea id="input-box" rows="1" placeholder="日本語で話しかけてね…"></textarea>
-  <button class="btn" id="send-btn" title="送信">➤</button>
+  <button class="btn" id="mic-btn" title="语音输入">🎤</button>
+  <textarea id="input-box" rows="1" placeholder="用日语或中文跟我说话…"></textarea>
+  <button class="btn" id="send-btn" title="发送">➤</button>
 </div>
 
 <div id="notice"></div>
@@ -89,7 +89,7 @@
 <div class="sheet hidden" id="scene-sheet">
   <div class="sheet-box">
     <div class="sheet-title">
-      <span>🎭 シーンを選ぶ</span>
+      <span>🎭 选择场景</span>
       <button class="sheet-close" data-close="scene-sheet">×</button>
     </div>
     <div class="scene-grid" id="scene-grid"></div>
@@ -100,14 +100,14 @@
 <div class="sheet hidden" id="vocab-sheet">
   <div class="sheet-box">
     <div class="sheet-title">
-      <span>📓 単語帳</span>
+      <span>📓 生词本</span>
       <button class="sheet-close" data-close="vocab-sheet">×</button>
     </div>
     <div id="vocab-days"></div>
     <div id="vocab-list"></div>
     <div class="vocab-actions">
-      <button id="vocab-export" class="primary">⬇ Ankiに書き出す</button>
-      <button id="vocab-clear">🗑 クリア</button>
+      <button id="vocab-export" class="primary">⬇ 导出到 Anki</button>
+      <button id="vocab-clear">🗑 清空</button>
     </div>
   </div>
 </div>
@@ -116,7 +116,7 @@
 <div class="sheet hidden" id="rescue-sheet">
   <div class="sheet-box">
     <div class="sheet-title">
-      <span>🆘 緊急フレーズ</span>
+      <span>🆘 救急短语</span>
       <button class="sheet-close" data-close="rescue-sheet">×</button>
     </div>
     <div class="rescue-grid" id="rescue-grid"></div>
@@ -127,7 +127,7 @@
 <div class="sheet hidden" id="review-sheet">
   <div class="sheet-box review-box">
     <div class="sheet-title">
-      <span>📝 間隔復習</span>
+      <span>📝 间隔复习</span>
       <button class="sheet-close" data-close="review-sheet">×</button>
     </div>
     <div class="review-stats" id="review-stats"></div>
@@ -140,19 +140,19 @@
         <div class="review-meaning" id="review-meaning"></div>
       </div>
     </div>
-    <div class="review-hint" id="review-hint">👆 タップで答えを見る</div>
+    <div class="review-hint" id="review-hint">👆 点一下看答案</div>
     <div class="review-grades" id="review-grades">
-      <button class="grade-btn" data-q="0">😰 全然<br>ダメ</button>
-      <button class="grade-btn" data-q="1">😣 忘れた</button>
-      <button class="grade-btn" data-q="2">🤔 見覚え<br>ある</button>
-      <button class="grade-btn" data-q="3">😅 難しい<br>けど正解</button>
-      <button class="grade-btn" data-q="4">😊 少し<br>迷った</button>
-      <button class="grade-btn" data-q="5">😎 完璧</button>
+      <button class="grade-btn" data-q="0">😰 完全<br>不会</button>
+      <button class="grade-btn" data-q="1">😣 忘了</button>
+      <button class="grade-btn" data-q="2">🤔 有点<br>面熟</button>
+      <button class="grade-btn" data-q="3">😅 想半天<br>才对</button>
+      <button class="grade-btn" data-q="4">😊 略微<br>犯眙</button>
+      <button class="grade-btn" data-q="5">😎 秒答</button>
     </div>
     <div class="review-done hidden" id="review-done">
       <div style="font-size:48px;margin-bottom:12px">🎉</div>
-      <p>今日の復習は全部終わりました！</p>
-      <p style="color:var(--text-dim);font-size:14px">また明日、さくらが待ってるよ 🌸</p>
+      <p>今天的复习全部完成了！</p>
+      <p style="color:var(--text-dim);font-size:14px">明天再来，小樱等你哦 🌸</p>
     </div>
   </div>
 </div>
@@ -161,14 +161,14 @@
 <div class="sheet hidden" id="quiz-sheet">
   <div class="sheet-box quiz-box">
     <div class="sheet-title">
-      <span>📝 翻訳練習</span>
+      <span>📝 翻译练习</span>
       <button class="sheet-close" data-close="quiz-sheet">×</button>
     </div>
     <!-- 方向 + 难度 -->
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
       <button id="quiz-direction" class="quiz-toggle">🇯🇵 → 🇨🇳</button>
       <select id="quiz-level" style="background:#2a2a2a;border:1px solid #333;color:var(--text-dim);border-radius:14px;padding:5px 10px;font-size:12px;font-family:inherit">
-        <option value="all">全レベル</option>
+        <option value="all">全难度</option>
         <option value="1">N5</option>
         <option value="2" selected>N4</option>
         <option value="3">N3</option>
@@ -181,9 +181,9 @@
     <div class="quiz-bar-track"><div class="quiz-bar-fill" id="quiz-bar-fill"></div></div>
     <!-- 题目卡片 -->
     <div class="quiz-card" id="quiz-card">
-      <div class="quiz-question-label">翻訳してください：</div>
+      <div class="quiz-question-label">请翻译：</div>
       <div class="quiz-question" id="quiz-question"></div>
-      <input type="text" id="quiz-input" placeholder="答えを入力…" autocomplete="off">
+      <input type="text" id="quiz-input" placeholder="输入答案…" autocomplete="off">
       <button id="quiz-check" class="quiz-check-btn">✅ 確認</button>
       <div class="quiz-feedback hidden" id="quiz-feedback"></div>
     </div>
@@ -191,7 +191,7 @@
     <div class="quiz-result hidden" id="quiz-result">
       <div style="font-size:48px;margin-bottom:8px" id="quiz-result-emoji"></div>
       <div id="quiz-result-text"></div>
-      <button id="quiz-restart" class="quiz-restart-btn">🔄 もう一度</button>
+      <button id="quiz-restart" class="quiz-restart-btn">🔄 再来一次</button>
     </div>
   </div>
 </div>
@@ -200,7 +200,7 @@
 <div class="sheet hidden" id="stats-sheet">
   <div class="sheet-box">
     <div class="sheet-title">
-      <span>📊 学習統計</span>
+      <span>📊 学习统计</span>
       <button class="sheet-close" data-close="stats-sheet">×</button>
     </div>
     <div id="stats-content"></div>
@@ -211,21 +211,21 @@
 <div class="sheet hidden" id="counter-sheet">
   <div class="sheet-box">
     <div class="sheet-title">
-      <span>🔢 助数詞ドリル</span>
+      <span>🔢 量词练习</span>
       <button class="sheet-close" data-close="counter-sheet">×</button>
     </div>
     <div id="counter-progress" style="font-size:13px;color:var(--text-dim);margin-bottom:10px"></div>
     <div class="counter-card" id="counter-card">
       <div class="counter-question" id="counter-q"></div>
       <div class="counter-hint" id="counter-hint"></div>
-      <input type="text" id="counter-input" placeholder="助数詞を入力…" autocomplete="off">
+      <input type="text" id="counter-input" placeholder="输入量词…" autocomplete="off">
       <button id="counter-check" class="quiz-check-btn">✅ 確認</button>
       <div class="quiz-feedback hidden" id="counter-feedback"></div>
     </div>
     <div class="quiz-result hidden" id="counter-result">
       <div style="font-size:48px;margin-bottom:8px" id="counter-result-emoji"></div>
       <div id="counter-result-text"></div>
-      <button id="counter-restart" class="quiz-restart-btn">🔄 もう一度</button>
+      <button id="counter-restart" class="quiz-restart-btn">🔄 再来一次</button>
     </div>
   </div>
 </div>
@@ -240,17 +240,16 @@
 <div id="auth-overlay">
   <div class="auth-box">
     <div style="font-size:44px;margin-bottom:12px">🔒</div>
-    <p style="margin-bottom:16px;color:var(--text-dim);font-size:14px">パスワードを入力してください</p>
-    <input type="password" id="auth-input" placeholder="パスワード" autocomplete="off">
+    <p style="margin-bottom:16px;color:var(--text-dim);font-size:14px">请输入访问口令</p>
+    <input type="password" id="auth-input" placeholder="口令" autocomplete="off">
     <button id="auth-btn" class="btn" style="width:auto;border-radius:18px;padding:0 28px;height:40px;font-size:15px;margin-top:12px;background:var(--accent);color:#fff">OK</button>
     <div id="auth-error"></div>
-    <!-- サーバー設定（⚙ アイコンで開閉） -->
+    <!-- 服务器设置（⚙ 图标开关） -->
     <div style="margin-top:16px;border-top:1px solid #333;padding-top:12px">
-      <span id="server-toggle" style="cursor:pointer;color:var(--text-dim);font-size:13px">⚙ サーバー設定</span>
+      <span id="server-toggle" style="cursor:pointer;color:var(--text-dim);font-size:13px">⚙ 服务器设置</span>
       <div id="server-config" style="display:none;margin-top:8px">
         <input type="text" id="server-input" placeholder="http://192.168.x.x:8765" autocomplete="off" style="width:100%;margin-bottom:6px">
-        <button id="server-save" class="btn" style="width:auto;border-radius:14px;padding:0 16px;height:30px;font-size:12px;background:#444;color:#ccc">保存</button>
-        <span id="server-msg" style="font-size:11px;color:#4a4;margin-left:8px"></span>
+        <button id="server-save" class="btn" style="width:auto;border-radius:14px;padding:0 16px;height:30px;font-size:12px;background:#444;color:#ccc">保存</button>        <span id="server-msg" style="font-size:11px;color:#4a4;margin-left:8px"></span>
       </div>
     </div>
   </div>
