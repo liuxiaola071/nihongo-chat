@@ -19,6 +19,14 @@ html, body{
   height: 100%;
   overflow: hidden;
 }
+html{
+  /* 关键：必须给 html 一个背景色。否则浏览器会把 body 的 --bg (#0f0f0f)
+     传播上来涂满整个画布(canvas)。iOS 独立 PWA 下 height:100% 解析出的
+     高度可能比物理屏幕矮几十 px，那块区域在 body 之外、无法用 body 内的
+     任何 CSS 覆盖，就露出一条纯 #0f0f0f 黑边。
+     这里改成输入栏同色 --surface，即使还有残余间隙也看不出接缝。 */
+  background: var(--surface);
+}
 body{
   font-family: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
   background: var(--bg);

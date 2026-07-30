@@ -1,5 +1,5 @@
 // 日语聊天 — Service Worker（网络优先 + 离线兜底）
-const CACHE = 'nihongo-v16';
+const CACHE = 'nihongo-v17';
 
 self.addEventListener('install', e => {
   e.waitUntil(
