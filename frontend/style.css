@@ -19,9 +19,10 @@ body{
   font-family: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
   background: var(--bg);
   color: var(--text);
-  height: 100vh;      /* 旧 iOS 回退（Safari < 15.4 不认识 dvh） */
-  height: 100dvh;     /* 动态视口高度：iPhone 收起地址栏时自动变高 */
-  height: var(--app-h, 100dvh);  /* JS 动态高度兜底：始终等于当前可见高度 */
+  /* 关键：用 fixed + inset:0 把整个页面钉满视口，
+     不依赖 100vh/100dvh 等易出问题的单位，任何设备都不会露出底部黑边 */
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
