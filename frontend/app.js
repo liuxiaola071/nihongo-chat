@@ -47,9 +47,9 @@ async function safeFetch(url, opts = {}) {
 // ==================== 全局状态 ====================
 let currentScenario = 'free';
 let currentMode = 'chat';      // chat|correct|translate|word
-let currentLevel = 'N4';       // N5|N4|N3|N2|N1
+let currentLevel = localStorage.getItem('nihongo_level') || 'N4';  // N5|N4|N3|N2|N1
 let currentRate = localStorage.getItem('nihongo_rate') || '';  // 语速
-let currentTone = 'polite';    // polite|casual|kansai
+let currentTone = localStorage.getItem('nihongo_tone') || 'polite';  // polite|casual|kansai
 let listeningMode = false;    // 听力模式：只显示文字不自动读
 let handsFreeMode = false;    // 免提对话：自动 听→说→听 循环
 let scenarioList = [];
@@ -734,7 +734,9 @@ document.getElementById('mode-bar').addEventListener('click', (e) => {
 // 难度选择
 document.getElementById('level-select').addEventListener('change', (e) => {
   currentLevel = e.target.value;
+  localStorage.setItem('nihongo_level', currentLevel);
 });
+document.getElementById('level-select').value = currentLevel;  // 恢复上次选择
 
 // 语速选择
 const speedSelect = document.getElementById('speed-select');
@@ -1478,9 +1480,11 @@ document.getElementById('quiz-btn')?.addEventListener('click', () => {
 // ==================== 语气切换 ====================
 document.getElementById('tone-select')?.addEventListener('change', (e) => {
   currentTone = e.target.value;
+  localStorage.setItem('nihongo_tone', currentTone);  // 持久化说话风格
   const labels = { polite: '😊 敬语', casual: '😎 随意', kansai: '🐙 关西话' };
   showNotice('说话风格: ' + (labels[currentTone] || currentTone), 1500);
 });
+if (document.getElementById('tone-select')) document.getElementById('tone-select').value = currentTone;  // 恢复上次选择
 
 // ==================== 听力模式 ====================
 document.getElementById('listening-toggle')?.addEventListener('click', () => {
