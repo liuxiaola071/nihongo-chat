@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from ai import chat_with_sakura, reset_history, export_markdown
+from ai import chat_with_sakura, reset_history, export_markdown, get_history
 from tts import text_to_speech
 import config as _cfg
 from config import HOST, PORT, MAX_INPUT_LENGTH, ACCESS_CODE
@@ -204,6 +204,15 @@ def reset(request: Request, response: Response):
     sid = _get_session(request, response)
     reset_history(sid)
     return {"status": "ok"}
+
+
+@app.get("/api/history")
+def history(request: Request, response: Response):
+    """获取当前会话的对话历史（前端启动时恢复用）"""
+    _require_auth(request)
+    sid = _get_session(request, response)
+    msgs = get_history(sid)
+    return {"messages": msgs}
 
 
 @app.get("/api/health")

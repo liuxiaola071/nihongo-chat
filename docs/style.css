@@ -11,6 +11,7 @@
   --text: #eee;
   --text-dim: #999;
   --accent: #ff6b7a;
+  --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 12px);
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -30,7 +31,7 @@ body{
 /* header */
 header{
   background: var(--surface);
-  padding: 10px 12px;
+  padding: calc(10px + var(--safe-top)) 12px 10px;
   border-bottom: 1px solid #333;
   flex-shrink: 0;
   /* 用 flex 布局让按钮自动换行，避免窄屏(iPhone)上重叠 */
@@ -622,7 +623,7 @@ header .sub{
   background:#2d1f1f;
   border-bottom:1px solid #5a3030;
   z-index:180;
-  padding:8px 40px 8px 14px;
+  padding:calc(8px + var(--safe-top)) 40px 8px 14px;
   font-size:13px;
   display:flex;
   align-items:center;

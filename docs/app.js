@@ -51,6 +51,9 @@ let listeningMode = false;    // 听力模式：只显示文字不自动读
 let handsFreeMode = false;    // 免提对话：自动 听→说→听 循环
 let scenarioList = [];
 let isSending = false;
+let _suppressRecognition = false;  // 发送后抑制语音识别残余事件
+let isMuted = localStorage.getItem('nihongo_muted') === '1';  // 静音状态
+let recognitionLang = 'ja-JP';    // 语音识别语言: ja-JP | zh-CN
 
 // ==================== 访问认证 ====================
 async function checkAuth() {
@@ -70,6 +73,7 @@ function onUnlocked() {
   loadRescuePhrases();
   initLocalVocab();
   loadReview();   // 预加载 SRS 复习数
+  loadHistory();  // 恢复对话历史
 }
 
 async function tryUnlock() {
@@ -294,6 +298,29 @@ function hideTyping() {
 
 // ==================== 播放语音 ====================
 let audioCtx = null;
+let masterGain = null;  // 主音量控制节点
+
+function _ensureAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = isMuted ? 0 : 1;
+    masterGain.connect(audioCtx.destination);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function setMuted(muted) {
+  isMuted = muted;
+  localStorage.setItem('nihongo_muted', muted ? '1' : '0');
+  if (masterGain) masterGain.gain.value = muted ? 0 : 1;
+  updateMuteBtn();
+}
+
+function updateMuteBtn() {
+  const btn = document.getElementById('mute-btn');
+  if (btn) btn.textContent = isMuted ? '🔇' : '🔊';
+}
 
 function playAudio(base64) {
   return new Promise((resolve) => {
@@ -303,13 +330,12 @@ function playAudio(base64) {
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
 
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      _ensureAudioCtx();
 
       audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
         const source = audioCtx.createBufferSource();
         source.buffer = buffer;
-        source.connect(audioCtx.destination);
+        source.connect(masterGain);  // 通过 GainNode 控制音量
         source.onended = () => resolve();
         source.start(0);
       }, () => resolve());  // 解码失败也 resolve，不阻塞流程
@@ -335,6 +361,7 @@ function speakByBrowser(text) {
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'ja-JP';
     u.rate = 0.9;
+    u.volume = isMuted ? 0 : 1;  // 静音控制
     u.voice = ja;
     u.onend = () => resolve(true);
     u.onerror = () => resolve(false);
@@ -530,12 +557,14 @@ function initSpeech() {
   }
 
   recognition = new SpeechRecognition();
-  recognition.lang = 'ja-JP';
+  recognition.lang = recognitionLang;
   recognition.interimResults = true;
   recognition.continuous = false;
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event) => {
+    // 发送后抑制残余事件，避免已清空的输入框被重新填入文字
+    if (_suppressRecognition) return;
     let transcript = '';
     for (let i = 0; i < event.results.length; i++) {
       transcript += event.results[i][0].transcript;
@@ -578,9 +607,11 @@ function initSpeech() {
 function startListening() {
   if (!recognition) return;
   try {
+    _suppressRecognition = false;  // 重置抑制标志
+    recognition.lang = recognitionLang;  // 同步当前语言
     isListening = true;
     micBtn.classList.add('listening');
-    statusEl.textContent = '🎤 聞いています…';
+    statusEl.textContent = recognitionLang === 'zh-CN' ? '🎤 听中文中…' : '🎤 聞いています…';
     recognition.start();
   } catch (e) {
     stopListening();
@@ -591,6 +622,11 @@ function stopListening() {
   isListening = false;
   micBtn.classList.remove('listening');
   statusEl.textContent = '';
+  // 强制中断并抑制残余事件
+  _suppressRecognition = true;
+  if (recognition) {
+    try { recognition.abort(); } catch (_) {}
+  }
 }
 
 micBtn.addEventListener('click', () => {
@@ -636,6 +672,29 @@ handsFreeBtn.addEventListener('click', () => {
   } else {
     startHandsFree();
   }
+});
+
+// ==================== 静音控制 🔊 ====================
+const muteBtn = document.getElementById('mute-btn');
+updateMuteBtn();  // 初始化按钮状态
+
+muteBtn.addEventListener('click', () => {
+  setMuted(!isMuted);
+  showNotice(isMuted ? '🔇 静音 ON' : '🔊 静音 OFF', 1500);
+});
+
+// ==================== 语音识别语言切换 🌐 ====================
+const langToggleBtn = document.getElementById('lang-toggle-btn');
+recognitionLang = localStorage.getItem('nihongo_recog_lang') || 'ja-JP';
+langToggleBtn.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
+
+langToggleBtn.addEventListener('click', () => {
+  recognitionLang = recognitionLang === 'ja-JP' ? 'zh-CN' : 'ja-JP';
+  localStorage.setItem('nihongo_recog_lang', recognitionLang);
+  langToggleBtn.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
+  showNotice(recognitionLang === 'zh-CN'
+    ? '🇨🇳 中文语音识别 — 说中文问日语'
+    : '🇯🇵 日本語音声認識', 2000);
 });
 
 // ==================== 模式切换 ====================
@@ -734,6 +793,7 @@ async function switchScenario(sid) {
     document.getElementById('scene-btn').firstChild.textContent = sc.emoji + ' ';
 
     chatEl.innerHTML = '';
+    clearLocalHistory();  // 切换场景清空本地历史缓存
     audioCache.clear();
     textCache.clear();
     addMsg('ai', sc.opening, { withAudio: true });
@@ -1037,6 +1097,55 @@ document.getElementById('review-btn').addEventListener('click', () => {
   openSheet('review-sheet');
 });
 
+// ==================== 对话历史持久化 ====================
+const LOCAL_HISTORY_KEY = 'nihongo_history';
+const MAX_LOCAL_HISTORY = 100;  // 本地最多保存100条消息
+
+/** 保存一条消息到 localStorage（客户端兜底，SCF 文件系统不可靠） */
+function _saveHistoryLocally(role, text) {
+  try {
+    const arr = JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY) || '[]');
+    arr.push({ role: role === 'me' ? 'user' : 'assistant', content: text });
+    // 超出上限只保留最近的
+    while (arr.length > MAX_LOCAL_HISTORY) arr.shift();
+    localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(arr));
+  } catch (_) {}
+}
+
+/** 从后端拉取历史，失败则用 localStorage 兜底，渲染到聊天窗口 */
+async function loadHistory() {
+  let msgs = [];
+  // 1. 尝试从服务器拉取
+  try {
+    const resp = await safeFetch(SERVER_URL + '/api/history');
+    if (resp.ok) {
+      const data = await resp.json();
+      msgs = data.messages || [];
+    }
+  } catch (_) {}
+
+  // 2. 服务器没有（冷启动/SCF重启）→ 用本地缓存兜底
+  if (!msgs.length) {
+    try {
+      msgs = JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY) || '[]');
+    } catch (_) { msgs = []; }
+  }
+
+  if (!msgs.length) return;
+
+  // 清空默认欢迎消息，渲染历史
+  chatEl.innerHTML = '';
+  for (const m of msgs) {
+    const role = m.role === 'user' ? 'me' : 'ai';
+    addMsg(role, m.content, { withAudio: role === 'ai' });
+  }
+}
+
+/** 清空本地历史缓存（切换场景/重置时调用） */
+function clearLocalHistory() {
+  localStorage.removeItem(LOCAL_HISTORY_KEY);
+}
+
 // ==================== 弹层开关 ====================
 function openSheet(id)  { document.getElementById(id).classList.remove('hidden'); }
 function closeSheet(id) { document.getElementById(id).classList.add('hidden'); }
@@ -1055,6 +1164,7 @@ async function sendToAI(text) {
 
   statusEl.textContent = 'さくらが考え中…';
   addMsg('me', text);
+  _saveHistoryLocally('me', text);  // 保存用户消息到本地
   showTyping();
 
   try {
@@ -1090,6 +1200,7 @@ async function sendToAI(text) {
       fixItems: data.fix_items || [],
       sceneDone: data.scene_done || false,
     });
+    _saveHistoryLocally('ai', data.reply);  // 保存 AI 回复到本地
 
     if (data.new_words && data.new_words.length) {
       saveVocab(data.new_words);
