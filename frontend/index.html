@@ -14,14 +14,14 @@
 <link rel="apple-touch-startup-image" href="apple-touch-icon.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
 <link rel="manifest" href="manifest.json">
 <title>日语聊天</title>
-<link rel="stylesheet" href="style.css?v=fix9">
+<link rel="stylesheet" href="style.css?v=fix10">
 </head>
 <body>
 
 <header>
   <button class="hdr-btn" id="scene-btn">💬 <span id="scene-label">自由聊天</span></button>
   <h1>🎌 跟小樱聊天</h1>
-  <div class="sub">AI 日语会话搭子 <span style="opacity:.5">v9</span></div>
+  <div class="sub">AI 日语会话搭子 <span style="opacity:.5">v10</span></div>
   <button class="hdr-btn" id="vocab-btn">📓 生词<span class="badge" id="vocab-badge">0</span></button>
   <button class="hdr-btn" id="review-btn">📝 复习<span class="badge" id="review-badge">0</span></button>
   <button class="hdr-btn" id="rescue-btn">🆘 救急短语</button>
@@ -53,13 +53,13 @@
     <option value="casual">😎 随意</option>
     <option value="kansai">🐙 关西话</option>
   </select>
-  <button class="mode-chip" id="listening-toggle" title="听力模式：只听不说">🔇</button>
-  <button class="mode-chip" id="handsfree-btn" title="免提对话：自动 听→说→听 循环">🎧</button>
-  <button class="mode-chip" id="mute-btn" title="静音/取消静音">🔊</button>
-  <button class="mode-chip" id="lang-toggle-btn" title="语音识别语言切换">🇯🇵</button>
-  <button class="mode-chip" id="export-btn" title="导出对话">📥</button>
-  <button class="mode-chip" id="stats-btn" title="学习统计">📊</button>
-  <button class="mode-chip" id="clear-history-btn" title="清空对话历史">🗑</button>
+  <button class="mode-chip tool-btn" id="listening-toggle" title="听力模式：只听不读"><span class="ico">🔇</span>只听</button>
+  <button class="mode-chip tool-btn" id="handsfree-btn" title="免提对话：自动 听→说→听 循环"><span class="ico">🎧</span>免提</button>
+  <button class="mode-chip tool-btn" id="mute-btn" title="静音/取消静音"><span class="ico">🔊</span>声音</button>
+  <button class="mode-chip tool-btn" id="lang-toggle-btn" title="语音识别语言切换"><span class="ico">🇯🇵</span>识别</button>
+  <button class="mode-chip tool-btn" id="export-btn" title="导出对话"><span class="ico">📥</span>导出</button>
+  <button class="mode-chip tool-btn" id="stats-btn" title="学习统计"><span class="ico">📊</span>统计</button>
+  <button class="mode-chip tool-btn" id="clear-history-btn" title="清空对话历史"><span class="ico">🗑</span>清空</button>
 </div>
 
 <div id="chat">

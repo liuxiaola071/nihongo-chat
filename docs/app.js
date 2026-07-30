@@ -324,8 +324,8 @@ function setMuted(muted) {
 }
 
 function updateMuteBtn() {
-  const btn = document.getElementById('mute-btn');
-  if (btn) btn.textContent = isMuted ? '🔇' : '🔊';
+  const ico = document.getElementById('mute-btn')?.querySelector('.ico');
+  if (ico) ico.textContent = isMuted ? '🔇' : '🔊';
 }
 
 function playAudio(base64) {
@@ -658,7 +658,6 @@ function startHandsFree() {
   }
   handsFreeMode = true;
   handsFreeBtn.classList.add('active');
-  handsFreeBtn.textContent = '🎧';
   showNotice('🎧 免提模式已开 — 直接说话吧', 2500);
   // 立即开始听
   setTimeout(() => startListening(), 300);
@@ -691,13 +690,14 @@ muteBtn.addEventListener('click', () => {
 
 // ==================== 语音识别语言切换 🌐 ====================
 const langToggleBtn = document.getElementById('lang-toggle-btn');
+const langToggleIco = langToggleBtn.querySelector('.ico');
 recognitionLang = localStorage.getItem('nihongo_recog_lang') || 'ja-JP';
-langToggleBtn.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
+langToggleIco.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
 
 langToggleBtn.addEventListener('click', () => {
   recognitionLang = recognitionLang === 'ja-JP' ? 'zh-CN' : 'ja-JP';
   localStorage.setItem('nihongo_recog_lang', recognitionLang);
-  langToggleBtn.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
+  langToggleIco.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
   showNotice(recognitionLang === 'zh-CN'
     ? '🇨🇳 中文语音识别 — 说中文问日语'
     : '🇯🇵 日本語音声認識', 2000);
@@ -728,7 +728,8 @@ function switchMode(modeId) {
 
 document.getElementById('mode-bar').addEventListener('click', (e) => {
   const chip = e.target.closest('.mode-chip');
-  if (chip) switchMode(chip.dataset.mode);
+  // 工具按钮没有 data-mode，不参与模式切换，否则点工具会把所有工具按钮一起点亮
+  if (chip && chip.dataset.mode) switchMode(chip.dataset.mode);
 });
 
 // 难度选择
@@ -1490,7 +1491,7 @@ if (document.getElementById('tone-select')) document.getElementById('tone-select
 document.getElementById('listening-toggle')?.addEventListener('click', () => {
   listeningMode = !listeningMode;
   const btn = document.getElementById('listening-toggle');
-  btn.textContent = listeningMode ? '🔈' : '🔇';
+  btn.querySelector('.ico').textContent = listeningMode ? '🔈' : '🔇';
   btn.classList.toggle('active', listeningMode);
   showNotice(listeningMode ? '🔇 听力模式 ON（不自动朗读）' : '🔈 听力模式 OFF', 1500);
 });

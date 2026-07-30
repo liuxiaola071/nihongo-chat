@@ -331,7 +331,11 @@ header .sub{
   cursor:pointer;
   font-family:inherit;
   white-space:nowrap;
+  transition:border-color .15s, color .15s, background .15s;
 }
+.mode-chip:hover{ border-color:#555; color:var(--text); }
+.mode-chip .ico{ margin-right:3px; }
+.tool-btn{ background:#232323; }
 .mode-chip.active{
   background:#3a2226;
   border-color:var(--accent);
