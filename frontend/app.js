@@ -1,6 +1,16 @@
 // ==================== 日语聊天 v1.6 — App ====================
 // 跟小樱聊天。AI 日语会话练习 PWA
 
+// ==================== iOS 视口高度兼容 ====================
+// 旧 iOS 不认识 dvh；iOS 15+ Safari 底部地址栏会动态遮挡屏幕底部
+// 用 window.innerHeight（真实可见高度）兜底，输入框永远在可见区域内
+function fixViewportHeight() {
+  document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+}
+window.addEventListener('resize', fixViewportHeight);
+window.addEventListener('orientationchange', () => setTimeout(fixViewportHeight, 120));
+fixViewportHeight();
+
 // ==================== 配置 ====================
 const isApp = location.protocol === 'file:' || location.protocol === 'capacitor:';
 // 跨域部署：前端 GitHub Pages + 后端 SCF
