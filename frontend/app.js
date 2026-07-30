@@ -106,9 +106,12 @@ async function tryUnlock() {
   }
 }
 
-document.getElementById('auth-btn').addEventListener('click', tryUnlock);
-document.getElementById('auth-input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') tryUnlock();
+// form 提交 = 点 OK 按钮 或 键盘按回车/go，统一走这里。
+// iOS 软键盘在输入法激活时不触发 keydown 的 Enter，但一定会触发表单 submit，
+// 所以用 submit 事件是最可靠的写法。
+document.getElementById('auth-form').addEventListener('submit', (e) => {
+  e.preventDefault();   // 阻止表单默认跳转行为
+  tryUnlock();
 });
 
 // 服务器地址设置

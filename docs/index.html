@@ -14,14 +14,14 @@
 <link rel="apple-touch-startup-image" href="apple-touch-icon.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
 <link rel="manifest" href="manifest.json">
 <title>日语聊天</title>
-<link rel="stylesheet" href="style.css?v=fix7">
+<link rel="stylesheet" href="style.css?v=fix8">
 </head>
 <body>
 
 <header>
   <button class="hdr-btn" id="scene-btn">💬 <span id="scene-label">自由聊天</span></button>
   <h1>🎌 跟小樱聊天</h1>
-  <div class="sub">AI 日语会话搭子 <span style="opacity:.5">v7</span></div>
+  <div class="sub">AI 日语会话搭子 <span style="opacity:.5">v8</span></div>
   <button class="hdr-btn" id="vocab-btn">📓 生词<span class="badge" id="vocab-badge">0</span></button>
   <button class="hdr-btn" id="review-btn">📝 复习<span class="badge" id="review-badge">0</span></button>
   <button class="hdr-btn" id="rescue-btn">🆘 救急短语</button>
@@ -241,8 +241,12 @@
   <div class="auth-box">
     <div style="font-size:44px;margin-bottom:12px">🔒</div>
     <p style="margin-bottom:16px;color:var(--text-dim);font-size:14px">请输入访问口令</p>
-    <input type="password" id="auth-input" placeholder="口令" autocomplete="off">
-    <button id="auth-btn" class="btn" style="width:auto;border-radius:18px;padding:0 28px;height:40px;font-size:15px;margin-top:12px;background:var(--accent);color:#fff">OK</button>
+    <!-- 包在 form 里：iPhone 键盘会显示「前往/go」键，按下直接提交，
+         不用非点 OK 按钮（iOS 输入法下 keydown 的 Enter 经常不触发） -->
+    <form id="auth-form">
+      <input type="password" id="auth-input" placeholder="口令" autocomplete="off" enterkeyhint="go">
+      <button id="auth-btn" type="submit" class="btn" style="width:auto;border-radius:18px;padding:0 28px;height:40px;font-size:15px;margin-top:12px;background:var(--accent);color:#fff">OK</button>
+    </form>
     <div id="auth-error"></div>
     <!-- 服务器设置（⚙ 图标开关） -->
     <div style="margin-top:16px;border-top:1px solid #333;padding-top:12px">
