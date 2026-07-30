@@ -59,6 +59,7 @@
   <button class="mode-chip" id="lang-toggle-btn" title="语音识别语言切换">🇯🇵</button>
   <button class="mode-chip" id="export-btn" title="导出对话">📥</button>
   <button class="mode-chip" id="stats-btn" title="学习统计">📊</button>
+  <button class="mode-chip" id="clear-history-btn" title="清空对话历史">🗑</button>
 </div>
 
 <div id="chat">
@@ -191,21 +192,6 @@
       <div style="font-size:48px;margin-bottom:8px" id="quiz-result-emoji"></div>
       <div id="quiz-result-text"></div>
       <button id="quiz-restart" class="quiz-restart-btn">🔄 もう一度</button>
-    </div>
-  </div>
-</div>
-
-<!-- 错误本弹层 -->
-<div class="sheet hidden" id="errors-sheet">
-  <div class="sheet-box">
-    <div class="sheet-title">
-      <span>📕 ミス帳</span>
-      <button class="sheet-close" data-close="errors-sheet">×</button>
-    </div>
-    <div id="errors-stats" style="margin-bottom:12px;font-size:13px;color:var(--text-dim)"></div>
-    <div id="errors-list"></div>
-    <div class="vocab-actions" style="margin-top:12px">
-      <button id="errors-clear">🗑 全部クリア</button>
     </div>
   </div>
 </div>

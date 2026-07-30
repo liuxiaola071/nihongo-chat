@@ -692,37 +692,6 @@ def get_weakness_report(request: Request, response: Response):
     return _get_weakness(sid)
 
 
-# ---------- 错误本 ----------
-@app.get("/api/errors")
-def get_errors(request: Request, response: Response):
-    """获取错误本"""
-    _require_auth(request)
-    sid = _get_session(request, response)
-    _load_errors()
-    items = _errors.get(sid, [])
-    # 按日期分组
-    grouped = {}
-    for item in items:
-        d = item.get("date", "unknown")
-        grouped.setdefault(d, []).append(item)
-    return {
-        "total": len(items),
-        "by_date": grouped,
-        "items": items[-50:][::-1],  # 最近50条
-    }
-
-
-@app.delete("/api/errors")
-def clear_errors(request: Request, response: Response):
-    """清空错误本"""
-    _require_auth(request)
-    sid = _get_session(request, response)
-    _load_errors()
-    _errors.pop(sid, None)
-    _save_errors_data()
-    return {"status": "ok"}
-
-
 # ---------- 量词专项练习 ----------
 @app.get("/api/assist/counter")
 def counter_quiz(request: Request, count: int = 5):

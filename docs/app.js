@@ -792,11 +792,9 @@ async function switchScenario(sid) {
     sceneLabel.textContent = sc.name;
     document.getElementById('scene-btn').firstChild.textContent = sc.emoji + ' ';
 
-    chatEl.innerHTML = '';
-    clearLocalHistory();  // 切换场景清空本地历史缓存
-    audioCache.clear();
-    textCache.clear();
+    // 不清空聊天窗口，历史对话一直保留，只在末尾接上新场景的开场白
     addMsg('ai', sc.opening, { withAudio: true });
+    _saveHistoryLocally('ai', sc.opening);
     showNotice(`${sc.emoji} ${sc.name}モード`, 2000);
   } catch (err) {
     showNotice('エラー: ' + err.message, 3000);
@@ -1141,10 +1139,21 @@ async function loadHistory() {
   }
 }
 
-/** 清空本地历史缓存（切换场景/重置时调用） */
+/** 清空本地历史缓存（手动清空按钮调用） */
 function clearLocalHistory() {
   localStorage.removeItem(LOCAL_HISTORY_KEY);
 }
+
+// 手动清空对话历史（唯一清理入口，切换场景不再清空）
+document.getElementById('clear-history-btn')?.addEventListener('click', async () => {
+  if (!confirm('会話履歴を全部消しますか？')) return;
+  clearLocalHistory();
+  try { await safeFetch(SERVER_URL + '/api/reset', { method: 'POST' }); } catch (_) {}
+  chatEl.innerHTML = '';
+  audioCache.clear();
+  textCache.clear();
+  showNotice('履歴をクリアしました', 1500);
+});
 
 // ==================== 弹层开关 ====================
 function openSheet(id)  { document.getElementById(id).classList.remove('hidden'); }
@@ -1549,68 +1558,6 @@ document.getElementById('stats-btn')?.addEventListener('click', () => {
   showStats();
   openSheet('stats-sheet');
 });
-
-// ==================== 错误本 ====================
-async function loadErrors() {
-  const container = document.getElementById('errors-list');
-  const statsArea = document.getElementById('errors-stats');
-  if (!container) return;
-  container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">読み込み中…</p>';
-
-  try {
-    const resp = await safeFetch(SERVER_URL + '/api/errors');
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
-    
-    statsArea.textContent = `合計 ${data.total} 件のミス`;
-    
-    if (!data.items.length) {
-      container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">まだミスがありません！🎉</p>';
-    } else {
-      container.innerHTML = data.items.map(item => `
-        <div class="error-row">
-          <span class="err-before">❌ ${escapeHtml(item.wrong || '')}</span>
-          <span class="err-arrow">→</span>
-          <span class="err-after">✅ ${escapeHtml(item.correct || '')}</span>
-          ${item.note ? `<span class="err-note">${escapeHtml(item.note)}</span>` : ''}
-        </div>
-      `).join('');
-    }
-  } catch (err) {
-    container.innerHTML = '<p style="color:var(--text-dim);text-align:center;padding:24px">読み込み失敗</p>';
-    console.error('errors load error:', err);
-  }
-}
-
-document.getElementById('errors-clear')?.addEventListener('click', async () => {
-  if (!confirm('ミス帳を全部消しますか？')) return;
-  try {
-    await safeFetch(SERVER_URL + '/api/errors', { method: 'DELETE' });
-    loadErrors();
-    showNotice('クリアしました', 1500);
-  } catch (err) {
-    showNotice('クリア失敗', 2000);
-  }
-});
-
-// 错误本按钮在 header 中，需要我们动态创建
-(function addErrorBtn() {
-  const header = document.querySelector('header');
-  if (!header) return;
-  const btn = document.createElement('button');
-  btn.className = 'hdr-btn';
-  btn.id = 'errors-btn';
-  btn.textContent = '📕 ミス帳';
-  // 插入在 review-btn 后面
-  const reviewBtn = document.getElementById('review-btn');
-  if (reviewBtn) reviewBtn.after(btn);
-  else header.appendChild(btn);
-  
-  btn.addEventListener('click', () => {
-    loadErrors();
-    openSheet('errors-sheet');
-  });
-})();
 
 // ==================== 量词专项 ====================
 let counterQuestions = [];

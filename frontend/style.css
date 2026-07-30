@@ -846,32 +846,6 @@ header .sub{
   color:#ccc;
 }
 
-/* ===== 错误本 ===== */
-.error-row{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:10px 12px;
-  background:#2a2a2a;
-  border:1px solid #3d3d3d;
-  border-radius:10px;
-  margin-bottom:6px;
-  flex-wrap:wrap;
-  font-size:14px;
-}
-.err-before{color:#ff8888}
-.err-arrow{color:var(--text-dim);flex-shrink:0}
-.err-after{color:#88ff88;font-weight:600}
-.err-note{
-  width:100%;
-  margin-top:4px;
-  font-size:11px;
-  color:var(--text-dim);
-  background:#333;
-  padding:3px 8px;
-  border-radius:6px;
-}
-
 /* ===== 量词专项 ===== */
 .counter-card{
   background:#2a2a2a;
