@@ -15,14 +15,22 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 *{margin:0;padding:0;box-sizing:border-box}
+html{
+  height: 100%;
+}
 body{
   font-family: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
   background: var(--bg);
   color: var(--text);
-  /* 关键：用 fixed + inset:0 把整个页面钉满视口，
-     不依赖 100vh/100dvh 等易出问题的单位，任何设备都不会露出底部黑边 */
-  position: fixed;
-  inset: 0;
+  /* 铺满全屏：html 给 100%，body 用动态视口单位 100dvh（iOS 15.4+，
+     含底部 home 指示条安全区），旧浏览器回退 100vh。
+     不再用 position:fixed —— iOS 26 独立 PWA 下 fixed 元素的底边可能
+     解析到安全区边缘而非屏幕物理边缘，导致输入框下方露出一条黑边。
+     用 height:100dvh + flex 列布局，输入框作为最后一个流内子元素必然贴底。 */
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
