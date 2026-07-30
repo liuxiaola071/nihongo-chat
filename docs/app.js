@@ -1382,7 +1382,7 @@ function checkQuizAnswer() {
     quizScore++;
     inputEl.classList.add('correct');
     feedbackEl.className = 'quiz-feedback ok';
-    feedbackEl.innerHTML = '✅ 正解！🎉';
+    feedbackEl.innerHTML = '✅ 答对啦！🎉';
   } else {
     inputEl.classList.add('wrong');
     feedbackEl.className = 'quiz-feedback ng';
@@ -1433,8 +1433,8 @@ function showQuizResult() {
   else if (pct >= 50) resultEmoji.textContent = '🤔';
   else resultEmoji.textContent = '📚';
 
-  resultText.innerHTML = `${QUIZ_TOTAL}問中 <b style="color:var(--accent);font-size:22px">${quizScore}</b> 問正解！<br>
-    <span style="color:var(--text-dim);font-size:14px">正解率 ${pct}%</span>`;
+  resultText.innerHTML = `${QUIZ_TOTAL} 题中答对 <b style="color:var(--accent);font-size:22px">${quizScore}</b> 题！<br>
+    <span style="color:var(--text-dim);font-size:14px">正确率 ${pct}%</span>`;
 }
 
 function toggleQuizDirection() {
@@ -1615,7 +1615,7 @@ function checkCounterAnswer() {
   if (isCorrect) {
     counterScore++;
     feedback.className = 'quiz-feedback ok';
-    feedback.innerHTML = `✅ 正解！「${escapeHtml(q.reading)}」`;
+    feedback.innerHTML = `✅ 答对啦！「${escapeHtml(q.reading)}」`;
   } else {
     feedback.className = 'quiz-feedback ng';
     feedback.innerHTML = `❌ 正确答案是「<b>${escapeHtml(q.reading)}</b>」(${escapeHtml(q.a)})`;
@@ -1654,7 +1654,7 @@ document.getElementById('counter-restart')?.addEventListener('click', loadCounte
   const btn = document.createElement('button');
   btn.className = 'hdr-btn';
   btn.id = 'counter-btn';
-  btn.textContent = '🔢 助数詞';
+  btn.textContent = '🔢 量词';
   const quizBtn = document.getElementById('quiz-btn');
   if (quizBtn) quizBtn.after(btn);
   else header.appendChild(btn);
