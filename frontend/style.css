@@ -18,18 +18,16 @@
 html, body{
   height: 100%;
   overflow: hidden;
-}
-html{
-  /* 关键：必须给 html 一个背景色。否则浏览器会把 body 的 --bg (#0f0f0f)
-     传播上来涂满整个画布(canvas)。iOS 独立 PWA 下 height:100% 解析出的
-     高度可能比物理屏幕矮几十 px，那块区域在 body 之外、无法用 body 内的
-     任何 CSS 覆盖，就露出一条纯 #0f0f0f 黑边。
-     这里改成输入栏同色 --surface，即使还有残余间隙也看不出接缝。 */
+  /* 关键：html 和 body 都用输入栏同色 --surface。
+     原因：1) html 不设背景时浏览器会把 body 背景传播去涂整个画布(canvas)，
+     iOS 独立 PWA 下 height:100% 可能比物理屏幕矮几十 px，那块在 body 之外、
+     用 body 内任何 CSS 都盖不到；2) 就算 body 到底了，input-area 没到底也会
+     露出 body 背景。两处都统一成 --surface 后，无论几何怎么算底部都无缝。
+     深色 --bg 只给 #chat 自己用。 */
   background: var(--surface);
 }
 body{
   font-family: -apple-system, 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
-  background: var(--bg);
   color: var(--text);
   display: flex;
   flex-direction: column;
@@ -71,6 +69,7 @@ header .sub{
 #chat{
   flex: 1;
   min-height: 0; /* 关键：允许 flex 子元素缩到内容高度以下，否则 input-area 被挤出屏幕 */
+  background: var(--bg);  /* 深色聊天背景只给这里，html/body 统一用 surface */
   overflow-y: auto;
   padding: 16px;
   display: flex;
