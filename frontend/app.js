@@ -203,15 +203,9 @@ function _cacheSet(map, key, value, maxSize) {
 
 let audioSeq = 0;
 
-function addMsg(role, text, opts = {}) {
+/** 构建一条消息的 HTML（addMsg 与流式打字机共用） */
+function buildMsgHtml(role, text, opts = {}) {
   const { withAudio = false, audioB64 = null, newWords = null, fixItems = null, sceneDone = false } = opts;
-  const div = document.createElement('div');
-  div.className = `msg ${role}`;
-
-  // 模式卡片：翻译/查词/纠错模式下给 AI 消息加额外 CSS 类
-  if (role === 'ai' && ['translate','word','correct'].includes(currentMode)) {
-    div.classList.add(`mode-${currentMode}`);
-  }
 
   // 正文：AI 消息拆成可点击句子
   let bodyHtml;
@@ -279,8 +273,19 @@ function addMsg(role, text, opts = {}) {
   if (fixItems && fixItems.length > 0) {
     showCorrectionBar(fixItems);
   }
+  return html;
+}
 
-  div.innerHTML = html;
+function addMsg(role, text, opts = {}) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+
+  // 模式卡片：翻译/查词/纠错模式下给 AI 消息加额外 CSS 类
+  if (role === 'ai' && ['translate','word','correct'].includes(currentMode)) {
+    div.classList.add(`mode-${currentMode}`);
+  }
+
+  div.innerHTML = buildMsgHtml(role, text, opts);
 
   chatEl.appendChild(div);
   scrollBottom();
@@ -338,10 +343,16 @@ function playAudio(base64) {
       _ensureAudioCtx();
 
       audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
+        // 解码期间可能已被打断 → 直接放弃播放
+        if (_audioCancelled) { resolve(); return; }
         const source = audioCtx.createBufferSource();
+        _activeSource = source;  // 记录当前播放源，供打断用
         source.buffer = buffer;
         source.connect(masterGain);  // 通过 GainNode 控制音量
-        source.onended = () => resolve();
+        source.onended = () => {
+          if (_activeSource === source) _activeSource = null;
+          resolve();
+        };
         source.start(0);
       }, () => resolve());  // 解码失败也 resolve，不阻塞流程
     } catch (e) {
@@ -368,18 +379,102 @@ function speakByBrowser(text) {
     u.rate = 0.9;
     u.volume = isMuted ? 0 : 1;  // 静音控制
     u.voice = ja;
-    u.onend = () => resolve(true);
-    u.onerror = () => resolve(false);
+    u.onend = () => { _activeUtterance = null; resolve(true); };
+    u.onerror = () => { _activeUtterance = null; resolve(false); };
+    _activeUtterance = u;  // 记录当前朗读，供打断用
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(u);
   });
 }
 
+// ── 音频打断（barge-in）：免提模式下用户一开口就停止朗读 ──
+let _activeSource = null;       // 正在播放的 AudioBufferSourceNode
+let _activeUtterance = null;    // 正在朗读的 SpeechSynthesisUtterance
+let _audioCancelled = false;    // 打断标记：解码完成时检查
+
+function cancelAudioPlayback() {
+  _audioCancelled = true;
+  // 延迟复位，避免同一轮内再次触发
+  setTimeout(() => { _audioCancelled = false; }, 100);
+  if (_activeSource) {
+    try { _activeSource.stop(); } catch (_) {}
+    _activeSource = null;
+  }
+  if (_activeUtterance) {
+    try { window.speechSynthesis.cancel(); } catch (_) {}
+    _activeUtterance = null;
+  }
+}
+
+// ── 麦克风能量监听：检测用户开口（barge-in 触发器）──
+let _micAnalyser = null;
+let _micStream = null;
+let _bargeInTimer = null;
+let _bargeInActive = false;  // 监听是否仍然有效（getUserMedia 异步期间可能已被取消）
+
+async function startBargeInMonitor() {
+  // 只在免提模式下启用；不支持媒体设备时静默跳过
+  if (!handsFreeMode || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  if (_bargeInActive) return;  // 已有监听在跑
+  _bargeInActive = true;
+  try {
+    _micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    if (!_bargeInActive) {  // 等待授权期间被取消 → 释放流并退出
+      try { _micStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+      _micStream = null;
+      return;
+    }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = ctx.createMediaStreamSource(_micStream);
+    _micAnalyser = ctx.createAnalyser();
+    _micAnalyser.fftSize = 512;
+    _micAnalyser.smoothingTimeConstant = 0.3;
+    src.connect(_micAnalyser);
+    const buf = new Uint8Array(_micAnalyser.fftSize);
+    _bargeInTimer = setInterval(() => {
+      if (!_bargeInActive) { stopBargeInMonitor(); return; }
+      _micAnalyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+      // 音量超过阈值且持续一段时间 → 判定用户开口 → 打断朗读
+      if (rms > 0.06) {
+        cancelAudioPlayback();
+        stopBargeInMonitor();
+        _callSpeaking = false; updateCallUI();  // 通话模式：被打断，进入聆听
+        // 立即进入聆听状态（免提模式下）
+        if (handsFreeMode && !isSending) {
+          statusEl.textContent = '🎤 听到你了，请说…';
+          setTimeout(() => { if (handsFreeMode && !isSending && !isListening) startListening(); }, 200);
+        }
+      }
+    }, 90);
+  } catch (_) { /* 拿不到麦克风就跳过打断功能 */ }
+}
+
+function stopBargeInMonitor() {
+  _bargeInActive = false;
+  if (_bargeInTimer) { clearInterval(_bargeInTimer); _bargeInTimer = null; }
+  if (_micStream) {
+    try { _micStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+    _micStream = null;
+  }
+  _micAnalyser = null;
+}
+
 async function playReply(audioB64, text) {
-  if (audioB64) {
-    await playAudio(audioB64);
-  } else if (text) {
-    await speakByBrowser(text);
+  _callSpeaking = true; updateCallUI();  // 通话模式：朗读中状态
+  try {
+    if (audioB64) {
+      await playAudio(audioB64);
+    } else if (text) {
+      await speakByBrowser(text);
+    }
+  } finally {
+    _callSpeaking = false; updateCallUI();  // 通话模式：朗读结束
   }
 }
 
@@ -575,7 +670,19 @@ function initSpeech() {
       transcript += event.results[i][0].transcript;
     }
     inputEl.value = transcript;
+    // 通话模式：用户说话实时显示到字幕
+    if (callOpen) {
+      const ut = document.getElementById('call-user-text');
+      if (ut && transcript.trim()) {
+        ut.textContent = '你：' + transcript;
+        ut.classList.remove('hidden');
+      }
+    }
     if (event.results[0].isFinal && transcript.trim()) {
+      // 通话模式：日语识别 → 用户字幕也加中文翻译（中文识别无需翻译）
+      if (callOpen && recognitionLang === 'ja-JP') {
+        translateForCall(transcript.trim(), 'call-user-trans');
+      }
       setTimeout(() => sendMessage(), 300);
     }
   };
@@ -617,6 +724,7 @@ function startListening() {
     isListening = true;
     micBtn.classList.add('listening');
     statusEl.textContent = recognitionLang === 'zh-CN' ? '🎤 听中文中…' : '🎤 听日语中…';
+    updateCallUI();  // 通话模式：聆听中状态
     recognition.start();
   } catch (e) {
     stopListening();
@@ -627,6 +735,7 @@ function stopListening() {
   isListening = false;
   micBtn.classList.remove('listening');
   statusEl.textContent = '';
+  updateCallUI();  // 通话模式：取消聆听状态
   // 强制中断并抑制残余事件
   _suppressRecognition = true;
   if (recognition) {
@@ -643,6 +752,9 @@ micBtn.addEventListener('click', () => {
     recognition.stop();
     stopListening();
   } else {
+    // 手动按麦 → 立即打断当前朗读并开始听（barge-in 手动路径）
+    cancelAudioPlayback();
+    stopBargeInMonitor();
     startListening();
   }
 });
@@ -657,7 +769,7 @@ function startHandsFree() {
   }
   handsFreeMode = true;
   handsFreeBtn.classList.add('active');
-  showNotice('🎧 免提模式已开 — 直接说话吧', 2500);
+  if (!callOpen) showNotice('🎧 免提模式已开 — 直接说话吧', 2500);
   // 立即开始听
   setTimeout(() => startListening(), 300);
 }
@@ -666,6 +778,7 @@ function stopHandsFree() {
   handsFreeMode = false;
   handsFreeBtn.classList.remove('active');
   statusEl.textContent = '';
+  stopBargeInMonitor();  // 退出免提时停止麦克风能量监听
 }
 
 handsFreeBtn.addEventListener('click', () => {
@@ -677,6 +790,155 @@ handsFreeBtn.addEventListener('click', () => {
     startHandsFree();
   }
 });
+
+// ==================== 语音通话模式 📞（全屏） ====================
+let callOpen = false;       // 通话界面是否打开
+let _callSpeaking = false;  // 通话模式：小樱是否正在朗读
+let _callSeconds = 0;       // 通话计时（秒）
+let _callTimer = null;      // 计时器句柄
+
+// 通话记录保存开关：默认保存（保持旧行为）；关闭后通话消息不入聊天区/不入本地/不入 AI 记忆
+let callSaveHistory = localStorage.getItem('nihongo_call_save') !== '0';
+let skipCallRender = false;  // 本次发送是否跳过聊天区渲染（通话 + 不保存时）
+
+const callOverlay = document.getElementById('call-overlay');
+const callBtn = document.getElementById('call-btn');
+const callSaveBtn = document.getElementById('call-save');
+const callMuteBtn = document.getElementById('call-mute');
+const callHangupBtn = document.getElementById('call-hangup');
+const callLangBtn = document.getElementById('call-lang');
+if (callSaveBtn) callSaveBtn.textContent = callSaveHistory ? '💾' : '🚫';
+
+// 通话 UI 状态：聆听中 / 朗读中 / 思考中 / 空闲
+function updateCallUI() {
+  if (!callOpen) return;
+  const st = document.getElementById('call-status');
+  const wave = document.getElementById('call-wave');
+  const hint = document.getElementById('call-hint');
+  if (_callSpeaking) {
+    st.textContent = '小樱朗读中…';
+    wave.className = 'call-wave speaking';
+    hint.textContent = '说话可随时打断小樱';
+  } else if (isListening) {
+    st.textContent = '聆听中…';
+    wave.className = 'call-wave listening';
+    hint.textContent = recognitionLang === 'zh-CN' ? '正在听中文，请说…' : '正在听日语，请说…';
+  } else if (isSending) {
+    st.textContent = '小樱思考中…';
+    wave.className = 'call-wave thinking';
+    hint.textContent = '马上就好，稍等一下…';
+  } else {
+    st.textContent = '通话中';
+    wave.className = 'call-wave';
+    hint.textContent = '直接说话即可，小樱会回应你';
+  }
+}
+
+function updateCallTimer() {
+  const el = document.getElementById('call-timer');
+  if (!el) return;
+  const m = String(Math.floor(_callSeconds / 60)).padStart(2, '0');
+  const s = String(_callSeconds % 60).padStart(2, '0');
+  el.textContent = m + ':' + s;
+  _callSeconds++;
+}
+
+function openCall() {
+  if (!recognition) {
+    showNotice('当前浏览器不支持语音输入', 2500);
+    return;
+  }
+  callOpen = true;
+  callOverlay.classList.remove('hidden');
+  callBtn.classList.add('active');
+  _callSeconds = 0;
+  updateCallTimer();
+  _callTimer = setInterval(updateCallTimer, 1000);
+  // 清空上一轮字幕（原文 + 双语翻译行）
+  const ut = document.getElementById('call-user-text');
+  const at = document.getElementById('call-ai-text');
+  const utr = document.getElementById('call-user-trans');
+  const atr = document.getElementById('call-ai-trans');
+  if (ut) { ut.textContent = ''; ut.classList.add('hidden'); }
+  if (at) at.textContent = 'さくら：';
+  if (utr) { utr.textContent = ''; utr.classList.add('hidden'); }
+  if (atr) { atr.textContent = ''; atr.classList.add('hidden'); }
+  updateCallUI();
+  // 自动进入免提循环（听→说→听），复用 barge-in + SSE
+  if (!handsFreeMode) startHandsFree();
+  else startListening();
+}
+
+function closeCall() {
+  if (!callOpen) return;
+  callOpen = false;
+  _callSpeaking = false;
+  callOverlay.classList.add('hidden');
+  callBtn.classList.remove('active');
+  if (_callTimer) { clearInterval(_callTimer); _callTimer = null; }
+  stopHandsFree();
+  if (isListening) { try { recognition.stop(); } catch (_) {} stopListening(); }
+  cancelAudioPlayback();
+  showNotice('📞 通话已挂断', 1500);
+}
+
+callBtn.addEventListener('click', () => {
+  if (callOpen) { closeCall(); } else { openCall(); }
+});
+
+callHangupBtn.addEventListener('click', closeCall);
+
+callMuteBtn.addEventListener('click', () => {
+  setMuted(!isMuted);
+  callMuteBtn.textContent = isMuted ? '🔇' : '🔊';
+  showNotice(isMuted ? '🔇 已静音' : '🔊 声音已开', 1200);
+});
+
+callLangBtn.addEventListener('click', () => {
+  recognitionLang = recognitionLang === 'ja-JP' ? 'zh-CN' : 'ja-JP';
+  localStorage.setItem('nihongo_recog_lang', recognitionLang);
+  callLangBtn.textContent = recognitionLang === 'zh-CN' ? '🇨🇳' : '🇯🇵';
+  showNotice(recognitionLang === 'zh-CN' ? '🇨🇳 中文语音识别' : '🇯🇵 日本語音声認識', 1500);
+  updateCallUI();
+});
+
+// 通话记录保存开关：💾 保存 / 🚫 不保存（仅影响本次及之后通话消息，聊天区打字消息照常保存）
+if (callSaveBtn) {
+  callSaveBtn.addEventListener('click', () => {
+    callSaveHistory = !callSaveHistory;
+    localStorage.setItem('nihongo_call_save', callSaveHistory ? '1' : '0');
+    callSaveBtn.textContent = callSaveHistory ? '💾' : '🚫';
+    showNotice(callSaveHistory ? '💾 通话内容会保存' : '🚫 通话内容不保存', 1600);
+  });
+}
+
+// 通话双语字幕：把日文翻译成中文显示到字幕翻译行（失败静默，不打扰通话）
+const callTransCache = new Map();
+async function translateForCall(text, elId) {
+  if (!callOpen || !text || !text.trim()) return;
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (callTransCache.has(text)) {
+    el.textContent = callTransCache.get(text);
+    el.classList.remove('hidden');
+    return;
+  }
+  try {
+    const resp = await safeFetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, mode: 'translate', level: currentLevel }),
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    const trans = (data.reply || '').trim();
+    if (!trans) return;
+    callTransCache.set(text, trans);
+    if (!callOpen) return;  // 翻译返回时可能已挂断
+    el.textContent = trans;
+    el.classList.remove('hidden');
+  } catch (_) { /* 翻译失败静默 */ }
+}
 
 // ==================== 静音控制 🔊 ====================
 const muteBtn = document.getElementById('mute-btn');
@@ -732,11 +994,28 @@ document.getElementById('mode-bar').addEventListener('click', (e) => {
 });
 
 // 难度选择
+const LEVEL_DESC = {
+  N5: '🌱 短句·必注假名·N5词汇',
+  N4: '🌿 日常词汇·难字注假名',
+  N3: '🍃 中长句·N3句型',
+  N2: '🌳 长句·敬语·抽象话题',
+  N1: '🌲 自由复杂表达·专业话题',
+};
+function updateLevelHint() {
+  const el = document.getElementById('level-hint');
+  if (el) {
+    el.textContent = LEVEL_DESC[currentLevel] || '';
+    el.dataset.level = currentLevel;
+  }
+}
 document.getElementById('level-select').addEventListener('change', (e) => {
   currentLevel = e.target.value;
   localStorage.setItem('nihongo_level', currentLevel);
+  updateLevelHint();
+  showNotice('难度已切换：' + (LEVEL_DESC[currentLevel] || currentLevel), 2500);
 });
 document.getElementById('level-select').value = currentLevel;  // 恢复上次选择
+updateLevelHint();  // 初始化难度特征提示
 
 // 语速选择
 const speedSelect = document.getElementById('speed-select');
@@ -1054,17 +1333,169 @@ document.querySelectorAll('.sheet').forEach(sheet => {
 });
 
 // ==================== 发送消息 ====================
+/**
+ * 流式对话：AI 回复逐 token 打字机显示（SSE）。
+ * 成功返回 true；老服务器没有流式端点时返回 false（调用方 fallback 到普通请求）。
+ */
+async function sendToAIStream(text) {
+  const resp = await safeFetch(SERVER_URL + '/api/chat/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text,
+      scenario: currentScenario,
+      mode: currentMode,
+      level: currentLevel,
+      rate: currentRate,
+      tone: currentTone,
+      save_history: !skipCallRender,  // 通话不保存开关 → 后端不写历史
+    }),
+  });
+
+  // 老后端没有 /api/chat/stream → fallback
+  if (resp.status === 404 || resp.status === 405) return false;
+  if (!resp.ok) {
+    let msg = `HTTP ${resp.status}`;
+    try {
+      const errData = await resp.json();
+      if (errData.detail) msg = errData.detail;
+    } catch (_) {}
+    throw new Error(msg);
+  }
+  // 部分环境（SCF 网关/老浏览器）不暴露响应体流 → fallback
+  if (!resp.body) return false;
+
+  // 创建 AI 气泡（空壳），边收边填文字；通话+不保存时跳过渲染（字幕/语音照常）
+  const div = skipCallRender ? null : document.createElement('div');
+  const bodyEl = div ? document.createElement('div') : null;
+  if (div) {
+    div.className = 'msg ai';
+    if (['translate','word','correct'].includes(currentMode)) {
+      div.classList.add(`mode-${currentMode}`);
+    }
+    bodyEl.className = 'msg-body';
+    div.appendChild(bodyEl);
+    chatEl.appendChild(div);
+    scrollBottom();
+  }
+  hideTyping();
+
+  // 解析 SSE 流
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buf = '';
+  let fullText = '';
+  let doneData = null;
+
+  const handleLine = (line) => {
+    const t = line.trim();
+    if (!t.startsWith('data:')) return;
+    const payload = JSON.parse(t.slice(5).trim());
+    if (payload.delta) {
+      fullText += payload.delta;
+      // 打字机效果：直接往气泡里追加
+      if (bodyEl) bodyEl.innerHTML = escapeHtml(fullText).replace(/\n/g, '<br>');
+      if (bodyEl) scrollBottom();
+      // 通话模式：字幕同步打字机
+      if (callOpen) {
+        const at = document.getElementById('call-ai-text');
+        if (at) at.textContent = 'さくら：' + fullText;
+      }
+    } else if (payload.done) {
+      doneData = payload;
+    } else if (payload.error) {
+      throw new Error(payload.error);
+    }
+  };
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      // SSE 事件以空行分隔
+      let idx;
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const line = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        handleLine(line);
+      }
+    }
+    if (buf.trim()) handleLine(buf);
+  } catch (e) {
+    if (div) div.remove();  // 清理残留空气泡，让 fallback 重新渲染
+    throw e;
+  }
+
+  if (!doneData) {
+    if (div) div.remove();  // 流中断无 done 事件 → 同样清理
+    throw new Error('流式响应中断');
+  }
+  const data = doneData;
+
+  // 用完整消息渲染（句子点击、音频按钮、生词、纠错、译文）
+  if (div) div.innerHTML = buildMsgHtml('ai', data.reply, {
+    withAudio: true,
+    audioB64: data.audio_b64,
+    newWords: data.new_words,
+    fixItems: data.fix_items || [],
+    sceneDone: data.scene_done || false,
+  });
+  if (!skipCallRender) _saveHistoryLocally('ai', data.reply);  // 通话不保存时跳过本地记录
+
+  // 通话模式：完整回复显示到字幕
+  if (callOpen) {
+    const at = document.getElementById('call-ai-text');
+    if (at) at.textContent = 'さくら：' + data.reply;
+    translateForCall(data.reply, 'call-ai-trans');  // 双语：中文翻译
+  }
+
+  if (data.new_words && data.new_words.length) {
+    saveVocab(data.new_words);
+    vocabCount += data.new_words.length;
+    renderBadge();
+  }
+
+  if (!listeningMode) {
+    statusEl.textContent = '🔊 朗读中…';
+    // 免提模式：朗读时监听麦克风，用户一开口就打断朗读进入聆听（barge-in）
+    const reading = playReply(data.audio_b64, data.reply);
+    if (handsFreeMode) startBargeInMonitor();
+    await reading;
+    stopBargeInMonitor();
+  }
+  statusEl.textContent = '';
+  // 免提模式：朗读结束后自动开始听
+  if (handsFreeMode) {
+    setTimeout(() => { if (handsFreeMode && !isSending && !isListening) startListening(); }, 600);
+  }
+  return true;
+}
+
 async function sendToAI(text) {
   if (isSending) return;
   isSending = true;
   sendBtn.disabled = true;
+  updateCallUI();  // 通话模式：思考中
 
   statusEl.textContent = '小樱正在思考…';
-  addMsg('me', text);
-  _saveHistoryLocally('me', text);  // 保存用户消息到本地
+  skipCallRender = callOpen && !callSaveHistory;  // 通话 + 不保存 → 不渲染气泡、不入任何记录
+  if (!skipCallRender) addMsg('me', text);
+  if (!skipCallRender) _saveHistoryLocally('me', text);  // 通话不保存时跳过本地记录
   showTyping();
 
   try {
+    // 优先走流式（打字机效果）；老服务器不支持时自动回退
+    let ok = false;
+    try {
+      ok = await sendToAIStream(text);
+    } catch (err) {
+      // 流式本身失败（网络/解析）→ 回退非流式，避免丢掉回复
+      console.warn('Stream failed, fallback to normal:', err);
+    }
+    if (ok) return;
+
+    // 非流式 fallback（老后端 / 流式出错）
     const resp = await safeFetch(API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1075,6 +1506,7 @@ async function sendToAI(text) {
         level: currentLevel,
         rate: currentRate,
         tone: currentTone,
+        save_history: !skipCallRender,  // 通话不保存开关 → 后端不写历史
       }),
     });
 
@@ -1090,14 +1522,23 @@ async function sendToAI(text) {
     const data = await resp.json();
     hideTyping();
 
-    addMsg('ai', data.reply, {
-      withAudio: true,
-      audioB64: data.audio_b64,
-      newWords: data.new_words,
-      fixItems: data.fix_items || [],
-      sceneDone: data.scene_done || false,
-    });
-    _saveHistoryLocally('ai', data.reply);  // 保存 AI 回复到本地
+    if (!skipCallRender) {
+      addMsg('ai', data.reply, {
+        withAudio: true,
+        audioB64: data.audio_b64,
+        newWords: data.new_words,
+        fixItems: data.fix_items || [],
+        sceneDone: data.scene_done || false,
+      });
+      _saveHistoryLocally('ai', data.reply);  // 通话不保存时跳过本地记录
+    }
+
+    // 通话模式：完整回复显示到字幕
+    if (callOpen) {
+      const at = document.getElementById('call-ai-text');
+      if (at) at.textContent = 'さくら：' + data.reply;
+      translateForCall(data.reply, 'call-ai-trans');  // 双语：中文翻译
+    }
 
     if (data.new_words && data.new_words.length) {
       saveVocab(data.new_words);
@@ -1107,13 +1548,18 @@ async function sendToAI(text) {
 
     if (!listeningMode) {
       statusEl.textContent = '🔊 朗读中…';
-      await playReply(data.audio_b64, data.reply);
+      // 免提模式：朗读时监听麦克风，用户一开口就打断朗读进入聆听（barge-in）
+      const reading = playReply(data.audio_b64, data.reply);
+      if (handsFreeMode) startBargeInMonitor();
+      await reading;
+      stopBargeInMonitor();
     }
     statusEl.textContent = '';
     // 免提模式：朗读结束后自动开始听（此时仍在 try 块内，isSending 尚为 true，
     // finally 会先把它置回 false，600ms 后定时器触发时已是空闲状态）
     if (handsFreeMode) {
-      setTimeout(() => { if (handsFreeMode && !isSending) startListening(); }, 600);
+      // 若 barge-in 已抢先进入聆听（isListening），就不再重复启动
+      setTimeout(() => { if (handsFreeMode && !isSending && !isListening) startListening(); }, 600);
     }
   } catch (err) {
     hideTyping();
@@ -1123,6 +1569,7 @@ async function sendToAI(text) {
   } finally {
     isSending = false;
     sendBtn.disabled = false;
+    updateCallUI();  // 通话模式：状态复位（朗读结束回到通话中/聆听中）
   }
 }
 
@@ -1137,6 +1584,13 @@ async function sendMessage() {
   inputEl.value = '';
   inputEl.style.height = 'auto';
   stopListening();
+
+  // 通话模式：手动输入发送也同步用户字幕
+  if (callOpen && text.trim()) {
+    const ut = document.getElementById('call-user-text');
+    if (ut) { ut.textContent = '你：' + text.trim(); ut.classList.remove('hidden'); }
+    if (recognitionLang === 'ja-JP') translateForCall(text.trim(), 'call-user-trans');
+  }
 
   await sendToAI(text);
 }

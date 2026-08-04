@@ -40,6 +40,7 @@
     <option value="N2">N2</option>
     <option value="N1">N1</option>
   </select>
+  <span id="level-hint" title="当前难度下小樱的说话特征"></span>
   <select id="speed-select" title="语速">
     <option value="-50%">🐢 0.5x</option>
     <option value="-25%">🐇 0.75x</option>
@@ -52,6 +53,7 @@
     <option value="casual">😎 随意</option>
     <option value="kansai">🐙 关西话</option>
   </select>
+  <button class="mode-chip tool-btn" id="call-btn" title="语音通话模式：全屏免提对话，像打电话一样"><span class="ico">📞</span>通话</button>
   <button class="mode-chip tool-btn" id="listening-toggle" title="听力模式：只听不读"><span class="ico">🔇</span>只听</button>
   <button class="mode-chip tool-btn" id="handsfree-btn" title="免提对话：自动 听→说→听 循环"><span class="ico">🎧</span>免提</button>
   <button class="mode-chip tool-btn" id="mute-btn" title="静音/取消静音"><span class="ico">🔊</span>声音</button>
@@ -211,6 +213,40 @@
   </div>
 </div>
 
-<script src="app.js?v=fix11"></script>
+<!-- 语音通话模式（全屏） -->
+<div id="call-overlay" class="hidden">
+  <div class="call-screen">
+    <!-- 顶部：名字 + 状态 + 通话计时 -->
+    <div class="call-header">
+      <div class="call-name">さくら <span class="call-dot"></span></div>
+      <div class="call-status" id="call-status">通话中</div>
+      <div class="call-timer" id="call-timer">00:00</div>
+    </div>
+    <!-- 中部：头像 + 波形 + 提示 -->
+    <div class="call-main">
+      <div class="call-avatar" id="call-avatar">🌸</div>
+      <div class="call-wave" id="call-wave">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="call-hint" id="call-hint">直接说话即可，小樱会回应你</div>
+    </div>
+    <!-- 实时字幕（你 / 小樱，双语：原文 + 中文翻译） -->
+    <div class="call-caption">
+      <div class="call-caption-user hidden" id="call-user-text"></div>
+      <div class="call-caption-trans hidden" id="call-user-trans"></div>
+      <div class="call-caption-ai" id="call-ai-text">こんにちは！さくらです🌸</div>
+      <div class="call-caption-trans hidden" id="call-ai-trans"></div>
+    </div>
+    <!-- 底部控制 -->
+    <div class="call-controls">
+      <button class="call-btn" id="call-save" title="通话记录：保存/不保存">💾</button>
+      <button class="call-btn" id="call-mute" title="静音/取消静音">🔊</button>
+      <button class="call-btn hangup" id="call-hangup" title="挂断通话">📞</button>
+      <button class="call-btn" id="call-lang" title="语音识别语言切换">🇯🇵</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=fix14"></script>
 </body>
 </html>

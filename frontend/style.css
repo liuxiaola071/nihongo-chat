@@ -363,6 +363,28 @@ header .sub{
   font-family:inherit;
   margin-left:auto;
 }
+/* 当前难度特征提示标签 */
+#level-hint{
+  flex-shrink:0;
+  font-size:10px;
+  color:var(--accent);
+  background:rgba(255,93,108,.12);
+  border:1px solid rgba(255,93,108,.35);
+  border-radius:14px;
+  padding:4px 9px;
+  white-space:nowrap;
+  user-select:none;
+  animation:hintIn .25s ease;
+}
+@keyframes hintIn{
+  from{opacity:0; transform:translateX(-4px);}
+  to{opacity:1; transform:translateX(0);}
+}
+#level-hint[data-level="N5"]{color:#7ee787; background:rgba(126,231,135,.12); border-color:rgba(126,231,135,.35);}
+#level-hint[data-level="N4"]{color:#79c0ff; background:rgba(121,192,255,.12); border-color:rgba(121,192,255,.35);}
+#level-hint[data-level="N3"]{color:#d2a8ff; background:rgba(210,168,255,.12); border-color:rgba(210,168,255,.35);}
+#level-hint[data-level="N2"]{color:#ffa657; background:rgba(255,166,87,.12); border-color:rgba(255,166,87,.35);}
+#level-hint[data-level="N1"]{color:#ff7b72; background:rgba(255,123,114,.12); border-color:rgba(255,123,114,.35);}
 
 /* ===== 纠错卡片 ===== */
 .fix-card{
@@ -1040,5 +1062,84 @@ header .sub{
   font-family:inherit;
 }
 .shadow-retry:active{opacity:.85}
+
+/* ==================== 语音通话模式（全屏） ==================== */
+#call-overlay{
+  position:fixed;inset:0;z-index:900;
+  background:radial-gradient(ellipse at 50% 18%,#2a1f3d 0%,#14121c 55%,#0b0b10 100%);
+  display:flex;align-items:center;justify-content:center;
+  animation:callFadeIn .25s ease;
+}
+#call-overlay.hidden{display:none}
+@keyframes callFadeIn{from{opacity:0}to{opacity:1}}
+
+.call-screen{
+  width:100%;height:100%;max-width:520px;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:calc(env(safe-area-inset-top) + 18px) 20px calc(env(safe-area-inset-bottom) + 14px);
+  box-sizing:border-box;
+}
+
+/* 顶部 */
+.call-header{width:100%;text-align:center;padding-top:10px}
+.call-name{font-size:22px;font-weight:700;color:#fff;letter-spacing:.5px}
+.call-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#4caf50;margin-left:8px;vertical-align:middle;animation:callPulse 1.6s infinite}
+.call-status{font-size:14px;color:#b8a8e6;margin-top:5px}
+.call-timer{font-size:13px;color:rgba(255,255,255,.38);margin-top:3px;font-variant-numeric:tabular-nums}
+@keyframes callPulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(76,175,80,.5)}50%{opacity:.4;box-shadow:0 0 0 8px rgba(76,175,80,0)}}
+
+/* 中部：头像 + 波形 */
+.call-main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;min-height:0}
+.call-avatar{
+  width:118px;height:118px;border-radius:50%;
+  background:linear-gradient(135deg,#ff9a9e,#fad0c4);
+  display:flex;align-items:center;justify-content:center;
+  font-size:56px;box-shadow:0 0 44px rgba(255,154,158,.35), inset 0 0 0 4px rgba(255,255,255,.25);
+  animation:callFloat 3s ease-in-out infinite;
+}
+@keyframes callFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+.call-wave{display:flex;align-items:center;gap:6px;height:42px}
+.call-wave span{width:5px;height:14px;border-radius:3px;background:#4a4a55;transition:background .25s}
+.call-wave.listening span{background:#4caf50;animation:callWaveUp 1s ease-in-out infinite}
+.call-wave.speaking span{background:#ff7b72;animation:callWaveUp .9s ease-in-out infinite}
+.call-wave.thinking span{background:#b8a8e6;animation:callWaveUp 1.3s ease-in-out infinite}
+.call-wave span:nth-child(1){animation-delay:0s}
+.call-wave span:nth-child(2){animation-delay:.12s}
+.call-wave span:nth-child(3){animation-delay:.24s}
+.call-wave span:nth-child(4){animation-delay:.36s}
+.call-wave span:nth-child(5){animation-delay:.48s}
+@keyframes callWaveUp{0%,100%{height:10px}50%{height:38px}}
+.call-hint{font-size:13px;color:rgba(255,255,255,.42)}
+
+/* 字幕 */
+.call-caption{width:100%;max-width:430px;min-height:96px;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;padding:0 6px}
+.call-caption-user{font-size:14px;color:rgba(255,255,255,.5);text-align:center;line-height:1.5;max-width:100%}
+.call-caption-ai{font-size:17px;color:#fff;text-align:center;line-height:1.6;word-break:break-word;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+/* 双语翻译行（小号、半透明、左侧"中"标签） */
+.call-caption-trans{
+  font-size:13px;color:rgba(255,255,255,.72);text-align:center;line-height:1.5;
+  max-width:100%;word-break:break-word;margin-top:-3px;
+}
+.call-caption-trans::before{
+  content:"中";display:inline-block;font-size:10px;color:#7fd4a8;
+  border:1px solid rgba(127,212,168,.5);border-radius:4px;
+  padding:0 4px;margin-right:6px;vertical-align:1px;
+}
+
+/* 底部控制 */
+.call-controls{width:100%;max-width:430px;display:flex;align-items:center;justify-content:space-around;padding:14px 0 6px}
+.call-btn{
+  width:62px;height:62px;border-radius:50%;border:none;
+  background:#2b2b36;color:#fff;font-size:25px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 18px rgba(0,0,0,.45);transition:transform .12s;
+}
+.call-btn:active{transform:scale(.9)}
+.call-btn.hangup{
+  width:76px;height:76px;font-size:32px;
+  background:linear-gradient(135deg,#ff6b6b,#e53935);
+  box-shadow:0 8px 26px rgba(229,57,53,.5);
+}
+.call-btn:active{transform:scale(.9)}
 
 

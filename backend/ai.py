@@ -25,25 +25,49 @@ SYSTEM_PROMPT = """あなたは日本語会話の練習相手です。以下の�
 あなたは20代の明るい日本人女性です。名前は「さくら」です。"""
 
 # N5-N1 难度提示
+# 设计原则：难度差异必须【肉眼可见】。每一档都有硬性量化限制（句长/词数/汉字量/句型范围），
+# 并附一条"自检规则"让模型输出前对照检查，避免"切了难度却感觉没变"。
 LEVEL_INSTRUCTIONS = {
-    "N5": "\n\n【レベル：N5】学習者は日本語初心者です。"
-           "ひらがなを多めに、漢字には必ずふりがなを（例：天気（てんき））。"
-           "文法は N5 レベルのみ（～です・ます、～たい、～たことがある など）。"
-           "一文は短く、単語も基本的なものだけ使ってください。",
-    "N4": "\n\n【レベル：N4】学習者は初級後半です。"
-           "簡単な漢字ならふりがな不要。"
-           "文法は N4 まで（～かもしれない、～ようだ、～てもいい など）。"
-           "文は中程度の長さで、日常会話レベルの単語を使ってください。",
-    "N3": "\n\n【レベル：N3】学習者は中級です。"
-           "常用漢字はほぼ読めるので、ふりがな不要。"
-           "少し複雑な文型（～わけではない、～べきだ など）も使ってOK。"
-           "自然なスピードの日常会話ができるレベル。",
-    "N2": "\n\n【レベル：N2】学習者は中上級です。"
-           "敬語・謙譲語を使い分けられるレベル。新聞やニュースの話題もOK。"
-           "抽象的な話題や意見交換もでき、フォーマルな場面も扱える。",
-    "N1": "\n\n【レベル：N1】学習者は上級です。ネイティブに近いレベル。"
-           "複雑な文章、専門的な話題、ビジネス会話もOK。"
-           "表現のニュアンスや微妙な言い回しも教えられるように。",
+    "N5": "\n\n【レベル：N5 — 初心者】学習者は日本語を始めたばかりです。"
+          "以下の【ハード制限】を厳守してください：\n"
+          "1. 1文は【10文字以内】で、1回の返事は【1〜2文】まで\n"
+          "2. 1回の返事で使う単語は【5語以内】。全部 N5 レベルの基本単語だけ（行く・食べる・今日・学校・友達 など）\n"
+          "3. 【漢字は必ずふりがなを付ける】（例：天気（てんき））。1回の返事の漢字は【3つまで】\n"
+          "4. 文法は N5 のみ：〜です・〜ます・〜たい・〜たことがある・〜てください\n"
+          "5. 質問文も必ず短く、選択式にする（例：「お寿司が好きですか？」→「好きですか、それとも苦手ですか？」）\n"
+          "【自检】返事を書く前に『この文、N5の人が読める？』と確認。1つでも難しい単語や長い文があれば書き直すこと。",
+    "N4": "\n\n【レベル：N4 — 初級後半】学習者は基本的な会話ができます。"
+          "以下の【ハード制限】を厳守してください：\n"
+          "1. 1文は【15文字以内】で、1回の返事は【2〜3文】まで\n"
+          "2. 1回の返事で使う単語は【8語以内】。難しい単語を使ったら必ず簡単な言い換えを添える\n"
+          "3. 【簡単な漢字ならふりがな不要】（学校・食べる など）。難しい漢字（例：準備・予定）には付ける\n"
+          "4. 文法は N4 まで：〜かもしれない・〜ようだ・〜てもいい・〜なければならない・〜そうだ\n"
+          "5. 質問は1つまでにし、日常会話の範囲で\n"
+          "【自检】返事を書く前に『この文、N4の人が読める？』と確認。N3以上の単語があれば言い換えること。",
+    "N3": "\n\n【レベル：N3 — 中級】学習者は日常会話をほぼ不自由なくできます。"
+          "以下の【ハード制限】を厳守してください：\n"
+          "1. 1文は【20文字以内】で、1回の返事は【2〜3文】まで\n"
+          "2. 1回の返事で使う単語は【12語以内】\n"
+          "3. 【常用漢字ならふりがな不要】。文は自然な長さでOK\n"
+          "4. 文法は N3 まで：〜わけではない・〜べきだ・〜らしい・〜ところだ・〜ば〜ほど\n"
+          "5. やや複雑な質問もOK（理由・意見・経験を尋ねる）\n"
+          "【自检】返事を書く前に『この文、N3の人が読める？』と確認。",
+    "N2": "\n\n【レベル：N2 — 中上級】学習者は新聞やニュースも理解できます。"
+          "以下の【ハード制限】を厳守してください：\n"
+          "1. 1文は【30文字以内】で、1回の返事は【2〜4文】まで\n"
+          "2. ふりがな不要。N2 までの単語・文法を自由に使ってOK\n"
+          "3. 文法は N2 まで：〜ものだ・〜ことになっている・〜に伴って・〜を通じて・敬語・謙譲語\n"
+          "4. 抽象的な話題（社会・仕事・将来）も話してOK\n"
+          "5. フォーマルな場面（面接・上司との会話）も自然に対応\n"
+          "【自检】返事を書く前に『この文、N2の人が読める？』と確認。",
+    "N1": "\n\n【レベル：N1 — 上級】学習者はネイティブに近いレベルです。"
+          "以下の【ハード制限】を厳守してください：\n"
+          "1. 文の長さ制限なし。1回の返事は【2〜4文】\n"
+          "2. ふりがな不要。専門的な話題（経済・文化・科学）もOK\n"
+          "3. 複雑な文章・比喩・慣用句・ニュアンス表現を自由に使ってOK\n"
+          "4. ビジネス会話（敬語・謙譲語・丁寧語）も正確に使い分け\n"
+          "5. 微妙なニュアンスの違い（〜わけにはいかない vs 〜わけがない など）も説明できる\n"
+          "【自检】返事を書く前に『この文、ネイティブらしい？』と確認。",
 }
 
 # 生词本用：让 AI 在回复最后单独列出这轮出现的重点单词
@@ -237,22 +261,17 @@ def export_markdown(session_id: str) -> str:
     return "\n".join(lines)
 
 
-def chat_with_sakura(
+def _prepare_request(
     user_text: str,
     session_id: str,
-    scenario_id: str | None = None,
-    mode: str = "chat",
-    level: str = "N4",
-    tone: str = "polite",
-) -> str:
-    """发送用户消息，返回 AI 日语回复
+    scenario_id: str | None,
+    mode: str,
+    level: str,
+    tone: str,
+):
+    """构建流式/非流式共用的 system + messages + history
 
-    返回的文本可能带有 ###WORDS###（生词）和 ###FIX###（纠错）标记行，
-    由调用方自行解析拆分。
-
-    mode 支持: chat(默认)/correct(纠错)/translate(翻译)/word(查词)
-    level: N5|N4|N3|N2|N1，默认 N4
-    tone: polite(敬語)|casual(タメ口)|kansai(関西弁)，默认 polite
+    返回 (system_content, messages, history, mode)
     """
     _cleanup_stale()
     _load_histories()
@@ -298,6 +317,55 @@ def chat_with_sakura(
         messages.extend(history)
     messages.append({"role": "user", "content": user_text})
 
+    return system_content, messages, history, mode
+
+
+def _commit_history(history, mode, user_text, reply):
+    """AI 回复成功后，把本轮对话记进历史（流式/非流式共用）"""
+    # 翻译模式不入历史——它是无状态的独立操作
+    if mode == "translate":
+        return
+    # 历史只存正文部分，去掉 ###WORDS### 和 ###FIX### 标记块，省 token
+    clean = reply
+    for marker in ("###WORDS###", "###FIX###"):
+        if marker in clean:
+            clean = clean.split(marker)[0].strip()
+    if not clean:
+        clean = reply
+    history.append({"role": "user", "content": user_text})
+    history.append({"role": "assistant", "content": clean})
+
+    # 超出上限就丢掉最老的一轮
+    max_messages = MAX_HISTORY_TURNS * 2
+    while len(history) > max_messages:
+        history.pop(0)
+        history.pop(0)
+
+    _save_histories_debounced()
+
+
+def chat_with_sakura(
+    user_text: str,
+    session_id: str,
+    scenario_id: str | None = None,
+    mode: str = "chat",
+    level: str = "N4",
+    tone: str = "polite",
+    save_history: bool = True,
+) -> str:
+    """发送用户消息，返回 AI 日语回复
+
+    返回的文本可能带有 ###WORDS###（生词）和 ###FIX###（纠错）标记行，
+    由调用方自行解析拆分。
+
+    mode 支持: chat(默认)/correct(纠错)/translate(翻译)/word(查词)
+    level: N5|N4|N3|N2|N1，默认 N4
+    tone: polite(敬語)|casual(タメ口)|kansai(関西弁)，默认 polite
+    """
+    _, messages, history, mode = _prepare_request(
+        user_text, session_id, scenario_id, mode, level, tone
+    )
+
     payload = {
         "model": DEEPSEEK_MODEL,
         "messages": messages,
@@ -329,25 +397,88 @@ def chat_with_sakura(
         print(f"[AI ERROR] DeepSeek 返回格式异常: {e}")
         return "うーん、うまく答えられなかった。もう一度お願い！"
 
-    # 成功了才记进历史（失败不污染记忆）
-    # 翻译模式不入历史——它是无状态的独立操作
-    if mode != "translate":
-        # 历史只存正文部分，去掉 ###WORDS### 和 ###FIX### 标记块，省 token
-        clean = reply
-        for marker in ("###WORDS###", "###FIX###"):
-            if marker in clean:
-                clean = clean.split(marker)[0].strip()
-        if not clean:
-            clean = reply
-        history.append({"role": "user", "content": user_text})
-        history.append({"role": "assistant", "content": clean})
-
-        # 超出上限就丢掉最老的一轮
-        max_messages = MAX_HISTORY_TURNS * 2
-        while len(history) > max_messages:
-            history.pop(0)
-            history.pop(0)
-
-        _save_histories_debounced()
+    # 成功了才记进历史（失败不污染记忆）；save_history=False（通话不保存）时跳过
+    if save_history:
+        _commit_history(history, mode, user_text, reply)
 
     return reply
+
+
+def chat_with_sakura_stream(
+    user_text: str,
+    session_id: str,
+    scenario_id: str | None = None,
+    mode: str = "chat",
+    level: str = "N4",
+    tone: str = "polite",
+    save_history: bool = True,
+):
+    """流式版：逐块 yield 回复文本增量，用于 SSE 打字机效果
+
+    与 chat_with_sakura 行为一致（难度/语气/历史/生词标记），
+    只是把 AI 回复按 token 增量产出。调用方负责最终解析 ###WORDS###/###FIX###。
+    结束时 yield 一个特殊 dict: {"__done__": True, "reply": 完整文本}
+    """
+    _, messages, history, mode = _prepare_request(
+        user_text, session_id, scenario_id, mode, level, tone
+    )
+
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": messages,
+        "temperature": 0.7,
+        "max_tokens": 400,
+        "stream": True,
+    }
+
+    chunks: list[str] = []
+    try:
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=60,
+            stream=True,
+        )
+        resp.raise_for_status()
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line:
+                continue
+            line = line.strip()
+            if not line.startswith("data:"):
+                continue
+            data_str = line[5:].strip()
+            if data_str == "[DONE]":
+                break
+            try:
+                data = json.loads(data_str)
+                delta = data["choices"][0]["delta"].get("content", "")
+            except (KeyError, IndexError, ValueError, json.JSONDecodeError):
+                continue
+            if delta:
+                chunks.append(delta)
+                yield delta
+        resp.close()
+    except requests.exceptions.Timeout:
+        print("[AI ERROR] DeepSeek 流式请求超时")
+        reply = "ごめんね、ちょっと聞こえなかった。もう一度言ってくれる？"
+        yield {"__done__": True, "reply": reply}
+        return
+    except requests.exceptions.RequestException as e:
+        print(f"[AI ERROR] DeepSeek 流式请求失败: {e}")
+        reply = "ごめんね、今ちょっと調子が悪いみたい。あとでまた話そう？"
+        yield {"__done__": True, "reply": reply}
+        return
+    except Exception as e:
+        print(f"[AI ERROR] DeepSeek 流式异常: {e}")
+        reply = "うーん、うまく答えられなかった。もう一度お願い！"
+        yield {"__done__": True, "reply": reply}
+        return
+
+    reply = "".join(chunks).strip()
+    if save_history:
+        _commit_history(history, mode, user_text, reply)
+    yield {"__done__": True, "reply": reply}

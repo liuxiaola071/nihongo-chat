@@ -14,10 +14,10 @@ from datetime import date, datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from ai import chat_with_sakura, reset_history, export_markdown, get_history
+from ai import chat_with_sakura, chat_with_sakura_stream, reset_history, export_markdown, get_history
 from tts import text_to_speech
 import config as _cfg
 from config import HOST, PORT, MAX_INPUT_LENGTH, ACCESS_CODE
@@ -89,6 +89,7 @@ class ChatRequest(BaseModel):
     level: str = "N4"             # N5|N4|N3|N2|N1
     rate: str = ""                # 语速: "-30%" / "+10%" / ""
     tone: str = "polite"          # polite|casual|kansai
+    save_history: bool = True     # 是否写入对话历史（通话不保存开关）
 
 
 class VocabItem(BaseModel):
@@ -141,6 +142,47 @@ def unlock(req: UnlockRequest, response: Response):
     return {"status": "ok"}
 
 
+def _finalize_reply(sid: str, raw_reply: str, req: ChatRequest) -> dict:
+    """把 AI 原始回复收尾成 ChatResponse 结构：打卡/纠错/生词/语音/场景
+
+    流式与非流式共用，保证两边行为一致。
+    """
+    # 打卡
+    _record_checkin(sid)
+
+    # 解析 ###FIX### 纠错块
+    fix_items = _parse_fix(raw_reply)
+
+    # 如果本次有纠错，自动存入错误本
+    if fix_items:
+        _save_errors(sid, fix_items)
+
+    # 把 ###FIX### 块从正文里剥掉（纠错内容单独用卡片展示，不能混在气泡正文和语音里）
+    reply_text = _strip_fix(raw_reply)
+
+    # 把 ###WORDS### 生词行拆出来
+    reply_text, words = split_reply(reply_text)
+    add_words(sid, words)
+    # 同步到 SRS 复习系统
+    srs.add_words_batch(sid, words)
+
+    # 生成语音（只读正文，传语速）
+    audio_b64 = text_to_speech(reply_text, req.rate)
+
+    # 检查场景是否达成
+    scene_done = check_completion(req.scenario, reply_text) if req.scenario else False
+    if scene_done and req.scenario:
+        _record_scene_done(sid, req.scenario)
+
+    return {
+        "reply": reply_text,
+        "audio_b64": audio_b64,
+        "new_words": [VocabItem(**w) for w in words],
+        "fix_items": [FixItem(**f) for f in fix_items],
+        "scene_done": scene_done,
+    }
+
+
 @app.post("/api/chat")
 def chat(req: ChatRequest, request: Request, response: Response) -> ChatResponse:
     """对话接口：接收用户日语文字，返回 AI 回复 + 语音"""
@@ -159,42 +201,72 @@ def chat(req: ChatRequest, request: Request, response: Response) -> ChatResponse
         )
 
     # 1. AI 对话（按会话隔离记忆 + 场景设定 + 模式 + 难度 + 语气）
-    raw_reply = chat_with_sakura(text, sid, req.scenario, req.mode, req.level, req.tone)
-
-    # 1.5 打卡
-    _record_checkin(sid)
-
-    # 2. 解析 ###FIX### 纠错块
-    fix_items = _parse_fix(raw_reply)
-    
-    # 如果本次有纠错，自动存入错误本
-    if fix_items:
-        _save_errors(sid, fix_items)
-
-    # 3. 把 ###FIX### 块从正文里剥掉（纠错内容单独用卡片展示，不能混在气泡正文和语音里）
-    raw_reply = _strip_fix(raw_reply)
-
-    # 4. 把 ###WORDS### 生词行拆出来
-    reply_text, words = split_reply(raw_reply)
-    add_words(sid, words)
-    # 同步到 SRS 复习系统
-    srs.add_words_batch(sid, words)
-
-    # 5. 生成语音（只读正文，传语速）
-    audio_b64 = text_to_speech(reply_text, req.rate)
-
-    # 6. 检查场景是否达成
-    scene_done = check_completion(req.scenario, reply_text) if req.scenario else False
-    if scene_done and req.scenario:
-        _record_scene_done(sid, req.scenario)
-
-    return ChatResponse(
-        reply=reply_text,
-        audio_b64=audio_b64,
-        new_words=[VocabItem(**w) for w in words],
-        fix_items=[FixItem(**f) for f in fix_items],
-        scene_done=scene_done,
+    raw_reply = chat_with_sakura(
+        text, sid, req.scenario, req.mode, req.level, req.tone, req.save_history
     )
+
+    result = _finalize_reply(sid, raw_reply, req)
+    return ChatResponse(**result)
+
+
+@app.post("/api/chat/stream")
+def chat_stream(req: ChatRequest, request: Request, response: Response):
+    """流式对话接口：AI 回复按 token 增量推送（SSE），实现打字机效果
+
+    事件格式（data: 后是 JSON）：
+      {"delta": "回复文本增量"}
+      {"done": true, "reply": ..., "audio_b64": ..., "new_words": [...], "fix_items": [...], "scene_done": bool}
+      {"error": "错误消息"}  # 出错时
+    """
+    _require_auth(request)
+    sid = _get_session(request, response)
+
+    text = req.text.strip()
+
+    if not text:
+        raise HTTPException(status_code=400, detail="空メッセージ")
+
+    if len(text) > MAX_INPUT_LENGTH:
+        raise HTTPException(
+            status_code=400,
+            detail=f"メッセージが長すぎます（{MAX_INPUT_LENGTH}文字以内）",
+        )
+
+    def _sse(payload: dict) -> str:
+        return "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
+
+    def event_stream():
+        try:
+            parts = []
+            for chunk in chat_with_sakura_stream(
+                text, sid, req.scenario, req.mode, req.level, req.tone, req.save_history
+            ):
+                if isinstance(chunk, dict) and chunk.get("__done__"):
+                    raw_reply = chunk["reply"]
+                else:
+                    parts.append(chunk)
+                    yield _sse({"delta": chunk})
+        except Exception as e:
+            print(f"[STREAM ERROR] {e}")
+            yield _sse({"error": "うーん、うまく答えられなかった。もう一度お願い！"})
+            return
+
+        # 兜底：生成器异常导致没有 done 时也拼出完整文本
+        if "raw_reply" not in locals():
+            raw_reply = "".join(parts)
+
+        result = _finalize_reply(sid, raw_reply, req)
+        # Pydantic 模型（VocabItem/FixItem）不能直接 json.dumps → 先转 dict
+        yield _sse({
+            "done": True,
+            "reply": result["reply"],
+            "audio_b64": result["audio_b64"],
+            "new_words": [w.model_dump() for w in result["new_words"]],
+            "fix_items": [f.model_dump() for f in result["fix_items"]],
+            "scene_done": result["scene_done"],
+        })
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @app.post("/api/reset")
